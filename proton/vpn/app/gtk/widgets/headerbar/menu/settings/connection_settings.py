@@ -19,35 +19,151 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with ProtonVPN.  If not, see <https://www.gnu.org/licenses/>.
 """
+from typing import TYPE_CHECKING
 
 from gi.repository import Gtk
+
+from proton.vpn.app.gtk.conflicts import WIREGUARD_PROTOCOL
+
 from proton.vpn.app.gtk.controller import Controller
-from proton.vpn.app.gtk.widgets.main.notification_bar import NotificationBar
+from proton.vpn.app.gtk.translator import C_
+from proton.vpn.app.gtk.utils.safe_signal_connect import safe_signal_connect
 from proton.vpn.app.gtk.widgets.headerbar.menu.settings.common import (
-    RECONNECT_MESSAGE, BaseCategoryContainer, SettingRow, SettingName, SettingDescription
+    BaseCategoryContainer, BetaTag, ToggleWidget, ConflictableComboboxWidget,
+    ReactiveSettingContainer, ReactiveSetting
 )
+from proton.vpn.app.gtk.widgets.headerbar.menu.settings.custom_dns import CustomDNSWidget
+
+if TYPE_CHECKING:
+    from proton.vpn.app.gtk.widgets.headerbar.menu.settings.settings_window import \
+        SettingsWindow
 
 
-class ConnectionSettings(BaseCategoryContainer):  # pylint: disable=too-many-instance-attributes
+class ProtocolComboboxWidget(ConflictableComboboxWidget, ReactiveSetting):
+    """Combobox widget for selecting the VPN protocol."""
+
+    PROTUN_CHECKBOX_LABEL = C_("label", "Use Proton protocols")
+
+    PROTUN_PROTOCOL_GROUP = "protun"
+    GENERIC_PROTOCOL_GROUP = "generic"
+
+    def on_settings_changed(self, settings):
+        """
+        When settings are changed, we need to check if the protocol is
+        still valid and update the combobox accordingly.
+        """
+        with self.pause_callback():
+            if self.combobox.get_active_text() != settings.protocol:
+                self.combobox.set_active_id(settings.protocol)
+
+    def get_protun_protocols(self) -> list[str]:
+        """
+        Returns the list of protun protocols if the feature flag is enabled,
+        otherwise returns an empty list. We can use this method to determine
+        whether the protun protocols should be shown in the UI or not.
+        """
+        is_protun_enabled = self._controller.feature_flags.get("ProTunV1")
+        if is_protun_enabled:
+            return self._controller.get_available_protocols(self.PROTUN_PROTOCOL_GROUP)
+        return []
+
+    def protocol_group(self, current_protocol: str, protun_protocols: list) -> str:
+        """Returns the protocol group for the given protocol."""
+        for protocol in protun_protocols:
+            if str(protocol.protocol) == current_protocol:
+                return self.PROTUN_PROTOCOL_GROUP
+        return self.GENERIC_PROTOCOL_GROUP
+
+    def _build_ui(self):
+        super()._build_ui()
+
+        current_protocol = self.get_setting()
+        protun_protocols = self.get_protun_protocols()
+
+        if protun_protocols:
+            current_protocol_group = self.protocol_group(current_protocol, protun_protocols)
+            self._build_protun_checkbox(current_protocol_group)
+        else:
+            current_protocol_group = self.GENERIC_PROTOCOL_GROUP
+
+        current_protocols = self._controller.get_available_protocols(current_protocol_group)
+        self._repopulate_combobox(current_protocols)
+
+        with self.pause_callback():
+            self.combobox.set_active_id(current_protocol)
+
+    def _build_protun_checkbox(self, current_protocol_group):
+        """Builds and attaches the protun checkbox, initialising it from the current setting."""
+        is_protun = current_protocol_group == self.PROTUN_PROTOCOL_GROUP
+
+        protun_checkbox = Gtk.CheckButton(label=self.PROTUN_CHECKBOX_LABEL)
+        protun_checkbox.set_active(is_protun)
+        safe_signal_connect(protun_checkbox, "toggled", self._on_protun_checkbox_toggled)
+
+        checkbox_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        checkbox_row.append(protun_checkbox)
+        checkbox_row.append(BetaTag())
+        self.attach(checkbox_row, 0, 2, 2, 1)
+
+    def _repopulate_combobox(self, protocols):
+        """Repopulates the combobox with the given protocols."""
+        with self.pause_callback():
+            self.combobox.set_entry_text_column(0)
+            self.combobox.remove_all()
+            for protocol in protocols:
+                self.combobox.append(str(protocol.protocol), protocol.ui_protocol)
+            self.combobox.set_entry_text_column(1)
+
+    def _on_protun_checkbox_toggled(self, checkbox):
+        if checkbox.get_active():
+            protocol_group = self.PROTUN_PROTOCOL_GROUP
+        else:
+            protocol_group = self.GENERIC_PROTOCOL_GROUP
+        protocols = self._controller.get_available_protocols(protocol_group)
+        self._repopulate_combobox(protocols)
+        if protocols:
+            self.combobox.set_active(0)
+
+
+class ConnectionSettings(BaseCategoryContainer, ReactiveSettingContainer):  # noqa: E501 # pylint: disable=line-too-long, too-many-instance-attributes
     """Settings related to connection are all grouped under this class."""
-    CATEGORY_NAME = "Connection"
-    PROTOCOL_LABEL = "Protocol"
-    VPN_ACCELERATOR_LABEL = "VPN Accelerator"
-    VPN_ACCELERATOR_DESCRIPTION = "Increase your connection speed by up to 400% "\
+    CATEGORY_NAME = C_("title", "Connection")
+    PROTOCOL_LABEL = C_("title", "Protocol")
+    PROTOCOL_DESCRIPTION = C_("message", "Protocol can only be changed when VPN is disconnected.")
+    VPN_ACCELERATOR_LABEL = C_("title", "VPN Accelerator")
+    VPN_ACCELERATOR_DESCRIPTION = C_(
+        "message",
+        "Increase your connection speed by up to 400% "
         "with performance enhancing technologies."
-    MODERATE_NAT_LABEL = "Moderate NAT"
-    MODERATE_NAT_DESCRIPTION = "Disables randomization of the local addresses mapping. "\
-        "This can slightly reduce connection security, but should allow direct "\
+    )
+    MODERATE_NAT_LABEL = C_("title", "Moderate NAT")
+    MODERATE_NAT_DESCRIPTION = C_(
+        "message",
+        "Disables randomization of the local addresses mapping. "
+        "This can slightly reduce connection security, but should allow direct "
         "connections for online gaming and similar purposes."
+    )
+    SWITCH_PROTOCOL_IF_CONNECTION_ACTIVE_DESCRIPTION = C_(
+        "message",
+        "Protocol selection "
+        "is disabled while VPN is active. Disconnect to make changes."
+    )
+    IPV6_LABEL = "IPv6"
+    IPV6_DESCRIPTION = C_(
+        "message",
+        "Tunnels IPv6 traffic through the VPN. "
+        "Can enhance compatibility with IPv6 networks."
+    )
 
-    def __init__(self, controller: Controller, notification_bar: NotificationBar):
+    def __init__(self, controller: Controller, settings_window: "SettingsWindow"):
         super().__init__(self.CATEGORY_NAME)
         self._controller = controller
-        self._notification_bar = notification_bar
-
-        self.vpn_accelerator_row = None
-        self.protocol_row = None
-        self.moderate_nat_row = None
+        self._settings_window = settings_window
+        self.custom_dns = None
+        self._protocol_widget = None
+        self._vpn_accelerator_toggle = None
+        self._moderate_nat_toggle = None
+        self._ipv6_toggle = None
 
     def build_ui(self):
         """Builds the UI, invoking all necessary methods that are
@@ -55,117 +171,75 @@ class ConnectionSettings(BaseCategoryContainer):  # pylint: disable=too-many-ins
         self.build_protocol()
         self.build_vpn_accelerator()
         self.build_moderate_nat()
-
-    @property
-    def protocol(self) -> str:
-        """Shortcut property that returns the current `protocol` setting"""
-        return self._controller.get_settings().protocol
-
-    @protocol.setter
-    def protocol(self, newvalue: str):
-        """Shortcut property that sets the new `protocol` setting and
-        stores to disk."""
-        self._controller.get_settings().protocol = newvalue
-        self._controller.save_settings(update_certificate=True)
-
-    @property
-    def vpn_accelerator(self) -> bool:
-        """Shortcut property that returns the current `vpn_accelerator` setting"""
-        return self._controller.get_settings().features.vpn_accelerator
-
-    @vpn_accelerator.setter
-    def vpn_accelerator(self, newvalue: bool):
-        """Shortcut property that sets the new `vpn_accelerator` setting and
-        stores to disk."""
-        self._controller.get_settings().features.vpn_accelerator = newvalue
-        self._controller.save_settings(update_certificate=True)
-
-    @property
-    def moderate_nat(self) -> bool:
-        """Shortcut property that returns the current `moderate_nat` setting."""
-        return self._controller.get_settings().features.moderate_nat
-
-    @moderate_nat.setter
-    def moderate_nat(self, newvalue: bool):
-        """Shortcut property that sets the new `moderate_nat` setting and
-        stores to disk."""
-        self._controller.get_settings().features.moderate_nat = newvalue
-        self._controller.save_settings(update_certificate=True)
+        self.build_ipv6()
+        self.build_custom_dns()
 
     def build_protocol(self):
         """Builds and adds the `protocol` setting to the widget."""
-        def on_combobox_changed(combobox):
-            model = combobox.get_model()
-            treeiter = combobox.get_active_iter()
-            protocol = model[treeiter][1]
-            self.protocol = protocol
-            if self._controller.is_connection_active:
-                self._notification_bar.show_info_message(
-                    f"{RECONNECT_MESSAGE}"
-                )
+        def do_set(combobox, new_value: str):
+            combobox.save_setting(new_value)
 
-        available_protocols = self._controller.get_available_protocols()
-        combobox = Gtk.ComboBoxText()
+        def do_revert(combobox):
+            combobox.combobox.set_active_id(WIREGUARD_PROTOCOL)
 
-        for protocol in available_protocols:
-            combobox.append(protocol.cls.protocol, protocol.cls.ui_protocol)
-
-        combobox.set_entry_text_column(1)
-        combobox.set_active_id(self.protocol)
-        combobox.connect("changed", on_combobox_changed)
-
-        self.protocol_row = SettingRow(SettingName(self.PROTOCOL_LABEL), combobox)
-        self.pack_start(self.protocol_row, False, False, 0)
+        self._protocol_widget = ProtocolComboboxWidget(
+            controller=self._controller,
+            title=self.PROTOCOL_LABEL,
+            description=self.PROTOCOL_DESCRIPTION,
+            setting_name="settings.protocol",
+            combobox_options=[],
+            disable_on_active_connection=True,
+            do_set=do_set,
+            do_revert=do_revert
+        )
+        self.append(self._protocol_widget)
 
     def build_vpn_accelerator(self):
         """Builds and adds the `vpn_accelerator` setting to the widget."""
-        def on_switch_state(_, new_value: bool):
-            self.vpn_accelerator = new_value
-            if self._controller.is_connection_active:
-                self._notification_bar.show_info_message(
-                    f"{RECONNECT_MESSAGE}"
-                )
+        def on_switch_state(_, new_value: bool, toggle_widget: ToggleWidget):
+            toggle_widget.save_setting(new_value)
 
-        if not self._controller.vpn_data_refresher.client_config.feature_flags.vpn_accelerator:
-            if self.vpn_accelerator:
-                self.vpn_accelerator = False
-            return
-
-        switch = Gtk.Switch()
-
-        self.vpn_accelerator_row = SettingRow(
-            SettingName(self.VPN_ACCELERATOR_LABEL),
-            switch,
-            SettingDescription(self.VPN_ACCELERATOR_DESCRIPTION)
+        self._vpn_accelerator_toggle = ToggleWidget(
+            controller=self._controller,
+            title=self.VPN_ACCELERATOR_LABEL,
+            description=self.VPN_ACCELERATOR_DESCRIPTION,
+            setting_name="settings.features.vpn_accelerator",
+            requires_subscription_to_be_active=True,
+            callback=on_switch_state
         )
-
-        switch.set_state(self.vpn_accelerator)
-        switch.connect("state-set", on_switch_state)
-        self.pack_start(self.vpn_accelerator_row, False, False, 0)
+        self.append(self._vpn_accelerator_toggle)
 
     def build_moderate_nat(self):
         """Builds and adds the `moderate_nat` setting to the widget."""
-        def on_switch_state(_, new_value: bool):
-            self.moderate_nat = new_value
-            if self._controller.is_connection_active:
-                self._notification_bar.show_info_message(
-                    f"{RECONNECT_MESSAGE}"
-                )
+        def on_switch_state(_, new_value: bool, toggle_widget: ToggleWidget):
+            toggle_widget.save_setting(new_value)
 
-        if not self._controller.vpn_data_refresher.client_config.feature_flags.moderate_nat:
-            if self.moderate_nat:
-                self.moderate_nat = False
-            return
-
-        switch = Gtk.Switch()
-
-        self.moderate_nat_row = SettingRow(
-            SettingName(self.MODERATE_NAT_LABEL),
-            switch,
-            SettingDescription(self.MODERATE_NAT_DESCRIPTION),
-            self._controller.user_tier
+        self._moderate_nat_toggle = ToggleWidget(
+            controller=self._controller,
+            title=self.MODERATE_NAT_LABEL,
+            description=self.MODERATE_NAT_DESCRIPTION,
+            setting_name="settings.features.moderate_nat",
+            requires_subscription_to_be_active=True,
+            callback=on_switch_state
         )
+        self.append(self._moderate_nat_toggle)
 
-        switch.set_state(self.moderate_nat)
-        switch.connect("state-set", on_switch_state)
-        self.pack_start(self.moderate_nat_row, False, False, 0)
+    def build_ipv6(self):
+        """Builds and adds the `ipv6` setting to the widget."""
+        def on_switch_state(_, new_value: bool, toggle_widget: ToggleWidget):
+            toggle_widget.save_setting(new_value)
+            self._settings_window.notify_user_with_reconnect_message(force_notify=True)
+
+        self._ipv6_toggle = ToggleWidget(
+            controller=self._controller,
+            title=self.IPV6_LABEL,
+            description=self.IPV6_DESCRIPTION,
+            setting_name="settings.ipv6",
+            callback=on_switch_state
+        )
+        self.append(self._ipv6_toggle)
+
+    def build_custom_dns(self):
+        """Builds and adds the `custom_dns` setting to the widget."""
+        self.custom_dns = CustomDNSWidget.build(self._controller, self._settings_window)
+        self.append(self.custom_dns)

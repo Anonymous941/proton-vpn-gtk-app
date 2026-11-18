@@ -1,0 +1,101 @@
+#vpn-connection-status-widget {
+    margin-top: 8px;
+    margin-bottom: 8px;
+    padding-left: 8px;
+}
+
+#vpn-connection-status-widget #status-title-row {
+    margin-bottom: 4px;
+}
+
+#vpn-connection-status-widget #status-title-row.protected {
+    color: @signal-success;
+}
+
+#vpn-connection-status-widget #status-title-row.unprotected {
+    color: @signal-danger;
+}
+
+#vpn-connection-status-widget #status-title-row.unprotected #status-icon {
+    margin-right: 3px; /* Extra margin to unprotected icon since it's right-heavy */
+}
+
+#vpn-connection-status-widget #status-title-label {
+    padding-top: 4px; /* Padding to compensate protected/unprotected icon being top-heavy */
+}
+
+#vpn-connection-status-widget #error-detail-label {
+    margin-bottom: 8px;
+}
+
+#vpn-connection-status-widget #free-countries-summary {
+    border-spacing: 6px;
+}
+
+#vpn-connection-status-widget #free-countries-summary > label {
+    color: @text-weak;
+}
+
+#free-countries-popover {
+    padding: 0;
+}
+
+#free-countries-popover .free-countries-content {
+    margin: 16px;
+    border-spacing: 12px;
+}
+
+#free-countries-popover .free-countries-header {
+    border-spacing: 6px;
+    margin-bottom: 12px;
+}
+
+#free-countries-popover .free-countries-header label {
+    font-size: 1em;
+}
+
+#free-countries-popover .free-countries-close {
+    padding: 0;
+    min-width: 16px;
+    min-height: 16px;
+    color: @text-weak;
+    /* The theme paints a gradient over the background colour without this. */
+    background-image: none;
+    background-color: @interaction-weak;
+}
+
+#free-countries-popover .free-countries-close:hover {
+    background-color: @interaction-weak-hover;
+}
+
+#free-countries-popover .free-countries-description {
+    color: @text-norm;
+}
+
+#free-countries-popover .free-countries-count {
+    color: @text-weak;
+    font-size: 0.85em;
+    margin-top: 8px;
+    margin-bottom: 8px;
+}
+
+#free-countries-popover .free-countries-entry {
+    border-spacing: 8px;
+}
+
+#port-forwarding-widget {
+    margin-top: 4px;
+}
+
+#port-forwarding-widget .active-port-icon {
+    margin-right: 4px;
+}
+
+#port-forwarding-widget button.flat {
+    padding: 2px 4px;
+}
+
+#port-forwarding-widget button.flat:hover {
+    background-color: @interaction-default-hover;
+    background-image: image(@interaction-default-hover);
+}

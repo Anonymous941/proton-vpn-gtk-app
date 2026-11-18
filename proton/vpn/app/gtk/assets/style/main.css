@@ -1,56 +1,31 @@
 @import "dark_colours.css";
-@import "dark_buttons.css";
-
-
-label.info {
-    background-color: @signal-info;
-    background-image: image(@signal-info);
-    color: @text-norm;
-    text-shadow: None;
-    padding: 5px;
-}
-
-label.error {
-    background-color: @signal-danger;
-    background-image: image(@signal-danger);
-    color: @text-norm;
-    text-shadow: None;
-    padding: 5px;
-}
-
-label.success {
-    background-color: @signal-success;
-    background-image: image(@signal-success);
-    color: @text-norm;
-    text-shadow: None;
-    padding: 5px;
-}
-
-#vpn-widget,
-#login-widget {
-    margin: 10px;
-}
+@import "connection_status.css";
+@import "main_widget.css";
+@import "quick_connect_widget.css";
+@import "search_entry.css";
+@import "search_results.css";
+@import "server_list.css";
+@import "nps_survey_modal.css";
 
 #login-logo {
     margin-top: 75px;
     margin-bottom: 40px;
+    margin-right: 10px;
+}
+
+#two-factor-auth-vpn-logo {
+    margin-top: 2em;
+    margin-bottom: 1em;
 }
 
 #bug-report-content,
-#bug-report-dialog buttonbox {
+#bug-report-dialog buttonbox,
+#early-access-dialog buttonbox,
+.dialog-action-area{
     margin: 20px;
 }
-
-#server-load.signal-danger {
-    color: @signal-danger
-}
-
-#server-load.signal-warning {
-    color: @signal-warning
-}
-
-#server-load.signal-success {
-    color: @signal-success
+.dialog-action-area > button {
+    margin-left: 5px;
 }
 
 .setting-category {
@@ -77,6 +52,14 @@ label.success {
     background-image: none;
 }
 
+.beta-tag {
+    border-radius: 5px;
+    border: 1px solid @primary;
+    color: @primary;
+    padding: 2px 6px;
+    font-size: 0.9em;
+}
+
 .release-notes-collection {
     margin: 20px 20px 60px 20px;
 }
@@ -86,3 +69,45 @@ label.success {
     padding: 15px 0px;
     margin-top: 20px;
 }
+
+#split-tunneling-app-selection-window viewport {
+    margin: 15px 30px 30px;
+    padding: 2px 0px 0px 0px;
+    border: 1px solid @border-norm;
+    border-radius: 5px;
+}
+
+#split-tunneling-app-selection-window viewport > box {
+    margin: 0px 0px 0px 5px;
+}
+
+#split-tunneling-app-selection-window #split-tunneling-app-done-button {
+    margin: 15px 30px 30px;
+}
+
+#split-tunneling-app-based-settings {
+    margin-top: 10px;
+}
+
+#split-tunneling-app-based-settings #split-tunneling-app-add-button {
+    margin: 15px 10px 5px 10px;
+}
+
+
+#selected-app-list {
+    padding: 12px 16px 12px 16px;
+    border-radius: 5px;
+    border: 1px solid rgba(155, 155, 155, 0.2);
+}
+
+#two-factor-auth-widget > label.two-factor-auth-stack-title {
+    font-size: 1.3em;
+    font-weight: bold;
+    margin-bottom: 0.5em;
+}
+
+.default-loading-widget-label{
+    margin-left: 1.8em;
+	margin-right: 1.8em;
+}
+

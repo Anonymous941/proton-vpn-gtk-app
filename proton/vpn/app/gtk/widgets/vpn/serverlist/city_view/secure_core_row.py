@@ -1,0 +1,209 @@
+"""
+Toggleable "Via Secure Core" row for the country, listing secure core servers.
+
+Copyright (c) 2026 Proton AG
+
+This file is part of Proton VPN.
+
+Proton VPN is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+Proton VPN is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with ProtonVPN.  If not, see <https://www.gnu.org/licenses/>.
+"""
+from __future__ import annotations
+
+from typing import List, Optional
+
+from gi.repository import GLib
+
+from proton.vpn.app.gtk import Gtk
+from proton.vpn.app.gtk.controller import Controller
+from proton.vpn.app.gtk.translator import C_
+from proton.vpn.session.dataclasses.servers import SecureCoreGroup
+from proton.vpn.session.servers import LogicalServer
+
+from proton.vpn.app.gtk.utils.assertions import runtime_assert
+from proton.vpn.app.gtk.widgets.vpn.serverlist.city_view.expandable_row import ExpandableRow
+from proton.vpn.app.gtk.widgets.vpn.serverlist.city_view.row_content import RowContent
+from proton.vpn.app.gtk.widgets.vpn.serverlist.city_view.row_view_model import RowViewModel
+from proton.vpn.app.gtk.widgets.vpn.serverlist.city_view.utils import (
+    upgrade_required_for_row, make_connect_callback, sync_rows_with_model_items
+)
+from proton.vpn.app.gtk.widgets.vpn.serverlist.icons import (
+    DoubleFlagIcon,
+    SecureCoreIcon,
+)
+from proton.vpn.app.gtk.utils.country import get_localized_country_name
+
+
+class SecureCoreRow(Gtk.Box):
+    """Toggleable row with label "Via Secure Core" that expands to show secure core servers."""
+    LABEL = C_("label", "Via Secure Core")
+
+    def __init__(self):
+        super().__init__(orientation=Gtk.Orientation.VERTICAL)
+        self._secure_core_group: Optional[SecureCoreGroup] = None
+        self._controller: Optional[Controller] = None
+        self._user_tier: Optional[int] = None
+        self._expandable_row = ExpandableRow(
+            on_expand=self._add_server_rows,
+            on_collapse=self._remove_server_rows,
+        )
+        self.append(self._expandable_row)
+        self._server_rows: List[RowContent] = []
+
+    # pylint: disable=too-many-arguments
+    def display(
+        self,
+        controller: Controller,
+        secure_core_group: SecureCoreGroup,
+        user_tier: int,
+        expanded: bool = False,
+    ) -> None:
+        """Displays the secure core row according to the specified parameters."""
+        self._controller = controller
+        self._secure_core_group = secure_core_group
+        self._user_tier = user_tier
+        self._expandable_row.reset(keep_children=False)
+        self._expandable_row.connect_toggle()
+        exit_country_name = get_localized_country_name(
+            secure_core_group.servers[0].exit_country)
+        upgrade_required = upgrade_required_for_row(controller, user_tier, secure_core_group)
+        connect_button_tooltip = (
+            C_(
+                "tooltip",
+                "Upgrade to connect to {country} via Secure Core"
+            ).format(country=exit_country_name)
+            if upgrade_required else
+            C_(
+                "tooltip",
+                "Connect to {country} via Secure Core"
+            ).format(country=exit_country_name)
+        )
+        toggle_button_tooltips = (
+            C_(
+                "tooltip",
+                # The \n is a line break. {country} is the destination country name.
+                "Show all Secure Core servers\nto connect to {country}"
+            ).format(country=exit_country_name),
+            C_(
+                "tooltip",
+                # The \n is a line break. {country} is the destination country name.
+                "Hide all Secure Core servers\nto connect to {country}"
+            ).format(country=exit_country_name)
+        )
+
+        row_data = RowViewModel(
+            name=self.LABEL,
+            on_connect=make_connect_callback(controller, secure_core_group.servers, user_tier),
+            free=secure_core_group.free,
+            under_maintenance=secure_core_group.under_maintenance and not upgrade_required,
+            features=set(),
+            smart_routing=False,
+            toggable=True,
+            upgrade_required=upgrade_required,
+            icon_factory=lambda: SecureCoreIcon(size=24),
+            connect_button_tooltip=connect_button_tooltip,
+            toggle_button_tooltips=toggle_button_tooltips,
+        )
+        self._expandable_row.row_content.display(row_data)
+        if expanded:
+            self._expandable_row.row_content.click_toggle_button()
+
+    @property
+    def row_content(self) -> RowContent:
+        """Returns the header row content widget."""
+        return self._expandable_row.row_content
+
+    @property
+    def server_rows(self) -> List[RowContent]:
+        """Returns the list of server rows currently displayed."""
+        return list(self._server_rows)
+
+    @property
+    def expanded(self) -> bool:
+        """Returns whether the secure core row is currently expanded or not."""
+        return self._expandable_row.row_content.expanded
+
+    @property
+    def label(self) -> str:
+        """Returns the label of the secure core row."""
+        return self._expandable_row.row_content.label
+
+    def reset(self, keep_children: bool = False) -> None:
+        """Resets the secure core row to its initial state."""
+        self._expandable_row.reset(keep_children=keep_children)
+
+    def _remove_server_rows(self) -> None:
+        while self._server_rows:
+            server_row = self._server_rows.pop()
+            self._expandable_row.remove_child(server_row)
+            server_row.reset()
+
+    def _add_server_rows(self) -> None:
+        runtime_assert(self._secure_core_group is not None, "Secure core group is not set")
+        # Capture controller directly to avoid closing over `self` in on_connect
+        controller = self._controller
+
+        # pylint: disable=duplicate-code
+        def display_server_row(server_row: RowContent, server: LogicalServer) -> None:
+            upgrade_required = upgrade_required_for_row(controller, self._user_tier, server)
+            exit_country_name = get_localized_country_name(server.exit_country)
+            entry_country_name = get_localized_country_name(server.entry_country)
+
+            def on_connect():
+                future = controller.connect_to_server(server.name)
+                future.add_done_callback(lambda f: GLib.idle_add(f.result))
+
+            row_data = RowViewModel(
+                name=C_("label", "Via {country}").format(country=entry_country_name),
+                on_connect=on_connect,
+                free=server.free,
+                under_maintenance=server.under_maintenance and not upgrade_required,
+                features=set(),
+                smart_routing=False,
+                toggable=False,
+                upgrade_required=upgrade_required,
+                load=None if server.under_maintenance else server.load,
+                icon_factory=lambda s=server: DoubleFlagIcon(
+                    exit_country_code=s.exit_country,
+                    entry_country_code=s.entry_country,
+                ),
+                connect_button_tooltip=(
+                    C_(
+                        "tooltip",
+                        # {exit_country} and {entry_country} are country names.
+                        "Upgrade to connect to {exit_country}"
+                        " via {entry_country}"
+                    ).format(
+                        exit_country=exit_country_name,
+                        entry_country=entry_country_name
+                    )
+                    if upgrade_required else
+                    C_(
+                        "tooltip",
+                        # {exit_country} and {entry_country} are country names.
+                        "Connect to {exit_country} via {entry_country}"
+                    ).format(
+                        exit_country=exit_country_name,
+                        entry_country=entry_country_name
+                    )
+                ),
+            )
+            server_row.display(row_data)
+
+        sync_rows_with_model_items(
+            list(self._secure_core_group.servers),
+            self._server_rows,
+            self._expandable_row.container,
+            RowContent,
+            display_server_row,
+        )

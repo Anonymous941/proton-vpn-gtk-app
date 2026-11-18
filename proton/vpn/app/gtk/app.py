@@ -19,18 +19,58 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with ProtonVPN.  If not, see <https://www.gnu.org/licenses/>.
 """
-from typing import Callable, Optional
 
-from gi.repository import GObject, Gtk, Gdk
+from typing import Any, Optional
+from gi.repository import GObject, Gtk, Gdk, GLib, Gio
 
 from proton.vpn import logging
+from proton.vpn.session import FREE_RESCOPE_FLAG
+from proton.vpn.session.feature_flags_fetcher import FeatureFlagsFetcher
 
 from proton.vpn.app.gtk.controller import Controller
-from proton.vpn.app.gtk.widgets.main.tray_indicator import TrayIndicator, TrayIndicatorNotSupported
+from proton.vpn.app.gtk.translator import C_
 from proton.vpn.app.gtk.widgets.main.main_window import MainWindow
-from proton.vpn.app.gtk.assets.style import STYLE_PATH
+from proton.vpn.app.gtk.assets.style import (
+    MAIN_CSS, MAIN_PRIORITY, MIN_GTK_INTERFACE_SETTINGS, PRIMITIVES_CSS,
+    PRIMITIVES_PRIORITY, STYLE_PATH, HighContrastToggle, load_app_css,
+)
+from proton.vpn.app.gtk.util import APPLICATION_ID, log_proton_package_versions
+from proton.vpn.app.gtk.utils.entry import disable_clear_icons
+from proton.vpn.app.gtk.utils.safe_signal_connect import safe_signal_connect
+from proton.vpn.app.gtk.widgets.main.tray_indicator import TrayIndicator, TrayIndicatorNotSupported
 
 logger = logging.getLogger(__name__)
+
+# Return values for GApplication's handle-local-options (see
+# do_handle_local_options): a negative value continues normal startup, 0 means
+# handled locally and exit successfully, and a positive value exits with that
+# value as the error code. Also used by DemoApp (proton.vpn.app.gtk.demo.demo_app).
+CONTINUE_STARTUP = -1
+EXIT_SUCCESS = 0
+EXIT_FAILURE = 1
+
+
+def prefer_dark_colour_scheme() -> Optional[int]:
+    """Use the dark colour scheme, including in high contrast.
+
+    Overrides the desktop's light or dark preference for this app only, and
+    remains in effect when the desktop's preference or theme changes.
+
+    :return: the ID of the handler that reapplies the scheme when the theme
+        changes, or None on GTK versions without the colour scheme setting.
+    """
+    gtk_version = (Gtk.get_major_version(), Gtk.get_minor_version(), Gtk.get_micro_version())
+    if gtk_version < MIN_GTK_INTERFACE_SETTINGS:
+        return None
+    settings = Gtk.Settings.get_default()
+    _set_dark_colour_scheme(settings)
+    # Each theme change, including GNOME turning high contrast on or off, applies the
+    # light colour scheme, so the dark scheme is reapplied after every theme change.
+    return safe_signal_connect(settings, "notify::gtk-theme-name", _set_dark_colour_scheme)
+
+
+def _set_dark_colour_scheme(settings: Gtk.Settings, _pspec=None) -> None:
+    settings.props.gtk_interface_color_scheme = Gtk.InterfaceColorScheme.DARK
 
 
 class App(Gtk.Application):
@@ -48,17 +88,21 @@ class App(Gtk.Application):
        exits automatically when the last one is closed.
      - It allows desktop shell integration by exporting actions and menus.
     """
-
-    def __init__(
-            self,
-            controller: Controller
-    ):
-        super().__init__(application_id="proton.vpn.app.gtk")
+    def __init__(self, controller: Controller):
+        flags = getattr(
+            Gio.ApplicationFlags, "DEFAULT_FLAGS", Gio.ApplicationFlags.FLAGS_NONE
+        )
+        super().__init__(application_id=APPLICATION_ID, flags=flags)
         logger.info(f"{self=}", category="APP", event="PROCESS_START")
+        log_proton_package_versions()
+
         self._controller = controller
-        self.window = None
-        self.tray_indicator = None
-        self._signal_connect_queue = []
+        self.window: Optional[MainWindow] = None
+        self._tray_indicator = None
+        self._signal_connect_queue: list[Any] = []
+        self._start_minimized_from_cli = False
+        self._high_contrast_toggle: Optional[HighContrastToggle] = None
+        self.add_options()
 
     def do_startup(self):  # pylint: disable=arguments-differ
         """Default GTK method.
@@ -67,15 +111,26 @@ class App(Gtk.Application):
         any necessary UI elements.
         """
         Gtk.Application.do_startup(self)
-        css_provider = Gtk.CssProvider()
-        css_provider.load_from_path(str(STYLE_PATH / "main.css"))
-
-        screen = Gdk.Screen.get_default()
-        Gtk.StyleContext.add_provider_for_screen(
-            screen,
-            css_provider,
-            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
-        )
+        # FreeRescope flag on: the redesign, high contrast toggle
+        # off: the legacy stylesheets and no clear icons.
+        # The flag is read from the cache, so a change applies at the following launch.
+        # Retiring the flag: keep the flag-on branch; delete the flag-off one,
+        # disable_clear_icons(), _primitives_legacy.css and dark_colours.css, and
+        # the @import lines for dark_colours.css.
+        display = Gdk.Display.get_default()
+        if FeatureFlagsFetcher(session=None).load_from_cache().get(FREE_RESCOPE_FLAG):
+            providers = load_app_css(display)
+            prefer_dark_colour_scheme()
+            self._high_contrast_toggle = HighContrastToggle(
+                display, providers[PRIMITIVES_CSS], PRIMITIVES_PRIORITY
+            )
+            self._high_contrast_toggle.track_desktop_contrast()
+        else:
+            load_app_css(display, [
+                (STYLE_PATH / "_primitives_legacy.css", PRIMITIVES_PRIORITY),
+                (MAIN_CSS, MAIN_PRIORITY),
+            ])
+            disable_clear_icons()
 
     def do_activate(self):  # pylint: disable=W0221
         """
@@ -84,23 +139,35 @@ class App(Gtk.Application):
         """
         if not self.window:
             self.window = MainWindow(self, self._controller)
-            # Process signal connection requests asap.
-            self._process_signal_connect_queue()
             # Windows are associated with the application like this.
             # When the last one is closed, the application shuts down.
             self.add_window(self.window)
             # The behaviour of the button to close the window is configured
             # depending on whether the tray indicator is shown or not.
-            self.tray_indicator = self._build_tray_indicator_if_possible(
-                self._controller, self.window
-            )
             self.window.configure_close_button_behaviour(
                 tray_indicator_enabled=(self.tray_indicator is not None)
             )
-            self.window.show_all()
+            self.window.set_visible(True)
 
         self.window.present()
         self.emit("app-ready")
+
+    def do_handle_local_options(self, options: GLib.VariantDict):  # noqa: E501 pylint: disable=arguments-differ
+        """
+        Handles the options defined in add_options
+        Returns:
+            Any negative number: Start as usual
+            Zero: Stop without error
+            Any positive number: Stop with the number as error code
+        """
+        if options.contains("version"):
+            print(self._controller.app_version)
+            return EXIT_SUCCESS
+
+        if options.contains("start-minimized"):
+            self._start_minimized_from_cli = True
+
+        return CONTINUE_STARTUP
 
     @property
     def error_dialog(self) -> Gtk.MessageDialog:
@@ -108,91 +175,49 @@ class App(Gtk.Application):
         Gives access to currently opened error message dialogs. This method
         was made available for testing purposes.
         """
-        return self.window.main_widget.notifications.error_dialog  # pylint: disable=W0212
+        return self.window.main_widget.notifications.error_dialog
 
     @GObject.Signal(name="app-ready")
     def app_ready(self):
         """Signal emitted when the app is ready for interaction."""
+        if self._start_app_minimized and self.tray_indicator:
+            self.window.set_visible(False)
 
-    def quit_safely(self):
-        """Quits the app safely by clicking on the quit entry in the header bar menu."""
-        self.window.header_bar.menu.quit_button_click()
+    @property
+    def _start_app_minimized(self) -> bool:
+        return self._start_minimized_from_cli \
+            or self._controller.get_app_configuration().start_app_minimized
 
-    def queue_signal_connect(self, signal_spec: str, callback: Callable):
-        """Queues a request to connect a callback to a signal.
+    def add_options(self):
+        """Adds the --start-minimized and --version command line options"""
+        self.add_main_option(
+            "start-minimized",
+            0,
+            GLib.OptionFlags(0),
+            GLib.OptionArg.NONE,
+            C_("cli", "Start minimized in the system tray")
+        )
 
-        This method should only be used by tests that need to connect a
-        callback to a widget signal before the app window, which contains
-        all app widgets, has been created.
+        self.add_main_option(
+            "version",
+            ord('v'),
+            GLib.OptionFlags(0),
+            GLib.OptionArg.NONE,
+            C_("cli", "Display the application's version")
+        )
 
-        Note that the window is not created in the Gtk.Application constructor
-        but when the app receives the ``activate`` signal. Fore more info:
-        https://wiki.gnome.org/HowDoI/GtkApplication
+    @property
+    def tray_indicator(self):
+        """Gives access to the tray indicator if it's installed and enabled."""
+        if self._tray_indicator:
+            return self._tray_indicator
 
-        While testing, we might want to use this method to make sure that we
-        are able to connect our callback **before** the signal has already
-        fired. This method allows the app to queue a
-        request to connect a callback to one of the widgets' signals. The queued
-        request will be processed as soon as the app window (with all its
-        children widgets) have been created.
-
-        Usage example:
-        .. code-block:: python
-            with AsyncExecutor() as executor:
-                app = App(executor)
-                app.queue_signal_connect(
-                    signal_spec="main_widget.vpn_widget.servers_widget::server-list-ready",
-                    callback=my_func
-                )
-                sys.exit(app.run(sys.argv))
-
-        The widget/signal the callback should be connected to is specified
-        with the ``signal_spec`` parameter, which should have the following
-        form: ``widget_attr.[widget_attr.]::signal-name``.
-
-        ``widget_attr`` refers to a widget attribute from the app window
-        which, in turn, can contain other widget attributes. The ``signal-name``
-        after the double colon is the name of the signal to attach the callback
-        to.
-
-        So in the example above, the resulting action once the app window is
-        created will be to run the following code:
-
-        .. code-block:: python
-            app.window.main_widget.vpn_widget.servers.connect(
-                "server-list-ready", my_func
-            )
-
-        :param signal_spec: signal specification.
-        :param callback: Callback to connect to the specified signal.
-        """
-        self._signal_connect_queue.append((signal_spec, callback))
-        if self.window:
-            # if the window already exist then the queue is processed instantly
-            self._process_signal_connect_queue()
-
-    def _process_signal_connect_queue(self):
-        """Processes all signal connection requests queued by calling
-        ``queue_signal_connect``."""
-        for _ in range(len(self._signal_connect_queue)):
-            signal_spec, callback = self._signal_connect_queue.pop(0)
-            widget_path, signal_name = signal_spec.split("::")
-            obj = self.window
-            for widget_path_segment in widget_path.split("."):
-                obj = getattr(obj, widget_path_segment)
-
-            assert isinstance(obj, GObject.Object), (                  # nosec: B101
-                f"{type(obj)} does not inherit from GObject.Object.")  # nosec: B101
-            obj.connect(signal_name, callback)
-
-    @staticmethod
-    def _build_tray_indicator_if_possible(
-        controller: Controller, main_window: MainWindow
-    ) -> Optional[TrayIndicator]:
-        """Returns a tray indicator instance if the required dependencies
-        are met, otherwise None is returned instead. """
         try:
-            return TrayIndicator(controller, main_window)
-        except TrayIndicatorNotSupported as error:
-            logger.info(f"{error}")
-            return None
+            tray_indicator = TrayIndicator(self._controller)
+            tray_indicator.setup(self.window)
+        except TrayIndicatorNotSupported as excp:
+            logger.warning(str(excp))
+        else:
+            self._tray_indicator = tray_indicator
+
+        return self._tray_indicator

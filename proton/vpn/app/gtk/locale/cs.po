@@ -1,0 +1,2278 @@
+#
+msgid ""
+msgstr ""
+"Language-Team: Czech\n"
+"Language: cs_CZ\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=3; plural=(n==1) ? 0 : (n>=2 && n<=4) ? 1 : 2;\n"
+
+msgctxt "button"
+msgid "Add"
+msgstr "Přidat"
+
+msgctxt "button"
+msgid "Authenticate"
+msgstr "Ověřit"
+
+msgctxt "button"
+msgid "Browse..."
+msgstr "Procházet..."
+
+msgctxt "button"
+msgid "Cancel"
+msgstr "Zrušit"
+
+msgctxt "button"
+msgid "Cancel Connection"
+msgstr "Zrušit připojení"
+
+msgctxt "button"
+msgid "Change server"
+msgstr "Změnit server"
+
+msgctxt "button"
+msgid "Connect"
+msgstr "Připojit"
+
+msgctxt "button"
+msgid "Create Account"
+msgstr "Vytvořit účet"
+
+msgctxt "button"
+msgid "Disable"
+msgstr "Deaktivovat"
+
+msgctxt "button"
+msgid "Disconnect"
+msgstr "Odpojit"
+
+msgctxt "button"
+msgid "Done"
+msgstr "Hotovo"
+
+msgctxt "button"
+msgid "Hide"
+msgstr "Skrýt"
+
+msgctxt "button"
+msgid "Learn more"
+msgstr "Zjistěte více"
+
+msgctxt "button"
+msgid "Manage Account"
+msgstr "Spravovat účet"
+
+msgctxt "button"
+msgid "Need Help?"
+msgstr "Potřebujete pomoc?"
+
+msgctxt "button"
+msgid "OK"
+msgstr "OK"
+
+msgctxt "button"
+msgid "Send error logs"
+msgstr "Odeslat logy chyb"
+
+msgctxt "button"
+msgid "Share anonymously"
+msgstr "Sdílet anonymně"
+
+msgctxt "button"
+msgid "Show"
+msgstr "Zobrazit"
+
+msgctxt "button"
+msgid "Sign in"
+msgstr "Přihlásit se"
+
+msgctxt "button"
+msgid "Sign in again"
+msgstr "Přihlásit se znovu"
+
+msgctxt "button"
+msgid "Start"
+msgstr "Začít"
+
+msgctxt "button"
+msgid "Stop"
+msgstr "Zastavit"
+
+msgctxt "button"
+msgid "Upgrade"
+msgstr "Navýšit"
+
+msgctxt "button"
+msgid "Use 6-digit authentication code"
+msgstr "Použít 6místný ověřovací kód"
+
+msgctxt "button"
+msgid "Use recovery code"
+msgstr "Použít kód pro obnovení"
+
+msgctxt "button"
+msgid "_Cancel"
+msgstr "_Zrušit"
+
+msgctxt "button"
+msgid "_Close"
+msgstr "_Zavřít"
+
+msgctxt "button"
+msgid "_Enable"
+msgstr "_Povolit"
+
+msgctxt "button"
+msgid "_No"
+msgstr "_Ne"
+
+msgctxt "button"
+msgid "_Select"
+msgstr "_Vybrat"
+
+msgctxt "button"
+msgid "_Submit"
+msgstr "_Odeslat"
+
+msgctxt "button"
+msgid "_Yes"
+msgstr "_Ano"
+
+msgctxt "cli"
+msgid "Display the application's version"
+msgstr "Zobrazit verzi aplikace"
+
+msgctxt "cli"
+msgid "Start minimized in the system tray"
+msgstr "Spustit minimalizované v oznamovací oblasti"
+
+msgctxt "country"
+msgid "Afghanistan"
+msgstr "Afghánistán"
+
+msgctxt "country"
+msgid "Aland Islands"
+msgstr "Alandské ostrovy"
+
+msgctxt "country"
+msgid "Albania"
+msgstr "Albánie"
+
+msgctxt "country"
+msgid "Algeria"
+msgstr "Alžírsko"
+
+msgctxt "country"
+msgid "American Samoa"
+msgstr "Americká Samoa"
+
+msgctxt "country"
+msgid "Andorra"
+msgstr "Andora"
+
+msgctxt "country"
+msgid "Angola"
+msgstr "Angola"
+
+msgctxt "country"
+msgid "Anguilla"
+msgstr "Anguilla"
+
+msgctxt "country"
+msgid "Antarctica"
+msgstr "Antarktida"
+
+msgctxt "country"
+msgid "Antigua and Barbuda"
+msgstr "Antigua a Barbuda"
+
+msgctxt "country"
+msgid "Argentina"
+msgstr "Argentina"
+
+msgctxt "country"
+msgid "Armenia"
+msgstr "Arménie"
+
+msgctxt "country"
+msgid "Aruba"
+msgstr "Aruba"
+
+msgctxt "country"
+msgid "Australia"
+msgstr "Austrálie"
+
+msgctxt "country"
+msgid "Austria"
+msgstr "Rakousko"
+
+msgctxt "country"
+msgid "Azerbaijan"
+msgstr "Ázerbájdžán"
+
+msgctxt "country"
+msgid "Bahamas"
+msgstr "Bahamy"
+
+msgctxt "country"
+msgid "Bahrain"
+msgstr "Bahrajn"
+
+msgctxt "country"
+msgid "Bangladesh"
+msgstr "Bangladéš"
+
+msgctxt "country"
+msgid "Barbados"
+msgstr "Barbados"
+
+msgctxt "country"
+msgid "Belarus"
+msgstr "Bělorusko"
+
+msgctxt "country"
+msgid "Belgium"
+msgstr "Belgie"
+
+msgctxt "country"
+msgid "Belize"
+msgstr "Belize"
+
+msgctxt "country"
+msgid "Benin"
+msgstr "Benin"
+
+msgctxt "country"
+msgid "Bermuda"
+msgstr "Bermudy"
+
+msgctxt "country"
+msgid "Bhutan"
+msgstr "Bhútán"
+
+msgctxt "country"
+msgid "Bolivia"
+msgstr "Bolívie"
+
+msgctxt "country"
+msgid "Bonaire, Saint Eustatius and Saba "
+msgstr "Bonaire, Svatý Eustach a Saba "
+
+msgctxt "country"
+msgid "Bosnia and Herzegovina"
+msgstr "Bosna a Hercegovina"
+
+msgctxt "country"
+msgid "Botswana"
+msgstr "Botswana"
+
+msgctxt "country"
+msgid "Bouvet Island"
+msgstr "Bouvetův ostrov"
+
+msgctxt "country"
+msgid "Brazil"
+msgstr "Brazílie"
+
+msgctxt "country"
+msgid "British Indian Ocean Territory"
+msgstr "Britské území v Indickém oceánu"
+
+msgctxt "country"
+msgid "British Virgin Islands"
+msgstr "Britské Panenské ostrovy"
+
+msgctxt "country"
+msgid "Brunei"
+msgstr "Brunej"
+
+msgctxt "country"
+msgid "Bulgaria"
+msgstr "Bulharsko"
+
+msgctxt "country"
+msgid "Burkina Faso"
+msgstr "Burkina Faso"
+
+msgctxt "country"
+msgid "Burundi"
+msgstr "Burundi"
+
+msgctxt "country"
+msgid "Cambodia"
+msgstr "Kambodža"
+
+msgctxt "country"
+msgid "Cameroon"
+msgstr "Kamerun"
+
+msgctxt "country"
+msgid "Canada"
+msgstr "Kanada"
+
+msgctxt "country"
+msgid "Cape Verde"
+msgstr "Kapverdy"
+
+msgctxt "country"
+msgid "Cayman Islands"
+msgstr "Kajmanské ostrovy"
+
+msgctxt "country"
+msgid "Central African Republic"
+msgstr "Středoafrická republika"
+
+msgctxt "country"
+msgid "Chad"
+msgstr "Čad"
+
+msgctxt "country"
+msgid "Chile"
+msgstr "Chile"
+
+msgctxt "country"
+msgid "China"
+msgstr "Čína"
+
+msgctxt "country"
+msgid "Christmas Island"
+msgstr "Vánoční ostrov"
+
+msgctxt "country"
+msgid "Cocos Islands"
+msgstr "Cookovy ostrovy"
+
+msgctxt "country"
+msgid "Colombia"
+msgstr "Kolumbie"
+
+msgctxt "country"
+msgid "Comoros"
+msgstr "Komory"
+
+msgctxt "country"
+msgid "Cook Islands"
+msgstr "Cookovy ostrovy"
+
+msgctxt "country"
+msgid "Costa Rica"
+msgstr "Kostarika"
+
+msgctxt "country"
+msgid "Croatia"
+msgstr "Chorvatsko"
+
+msgctxt "country"
+msgid "Cuba"
+msgstr "Kuba"
+
+msgctxt "country"
+msgid "Curacao"
+msgstr "Curacao"
+
+msgctxt "country"
+msgid "Cyprus"
+msgstr "Kypr"
+
+msgctxt "country"
+msgid "Czech Republic"
+msgstr "Česká republika"
+
+msgctxt "country"
+msgid "Democratic Republic of the Congo"
+msgstr "Demokratická republika Kongo"
+
+msgctxt "country"
+msgid "Denmark"
+msgstr "Dánsko"
+
+msgctxt "country"
+msgid "Djibouti"
+msgstr "Džibutsko"
+
+msgctxt "country"
+msgid "Dominica"
+msgstr "Dominika"
+
+msgctxt "country"
+msgid "Dominican Republic"
+msgstr "Dominikánská republika"
+
+msgctxt "country"
+msgid "East Timor"
+msgstr "Východní Timor"
+
+msgctxt "country"
+msgid "Ecuador"
+msgstr "Ekvádor"
+
+msgctxt "country"
+msgid "Egypt"
+msgstr "Egypt"
+
+msgctxt "country"
+msgid "El Salvador"
+msgstr "Salvador"
+
+msgctxt "country"
+msgid "Equatorial Guinea"
+msgstr "Rovníková Guinea"
+
+msgctxt "country"
+msgid "Eritrea"
+msgstr "Eritrea"
+
+msgctxt "country"
+msgid "Estonia"
+msgstr "Estonsko"
+
+msgctxt "country"
+msgid "Ethiopia"
+msgstr "Etiopie"
+
+msgctxt "country"
+msgid "Falkland Islands"
+msgstr "Falklandské ostrovy"
+
+msgctxt "country"
+msgid "Faroe Islands"
+msgstr "Faerské ostrovy"
+
+msgctxt "country"
+msgid "Fiji"
+msgstr "Fidži"
+
+msgctxt "country"
+msgid "Finland"
+msgstr "Finsko"
+
+msgctxt "country"
+msgid "France"
+msgstr "Francie"
+
+msgctxt "country"
+msgid "French Guiana"
+msgstr "Francouzská Guyana"
+
+msgctxt "country"
+msgid "French Polynesia"
+msgstr "Francouzská Polynésie"
+
+msgctxt "country"
+msgid "French Southern Territories"
+msgstr "Francouzská jižní území"
+
+msgctxt "country"
+msgid "Gabon"
+msgstr "Gabon"
+
+msgctxt "country"
+msgid "Gambia"
+msgstr "Gambie"
+
+msgctxt "country"
+msgid "Georgia"
+msgstr "Gruzie"
+
+msgctxt "country"
+msgid "Germany"
+msgstr "Německo"
+
+msgctxt "country"
+msgid "Ghana"
+msgstr "Ghana"
+
+msgctxt "country"
+msgid "Gibraltar"
+msgstr "Gibraltar"
+
+msgctxt "country"
+msgid "Greece"
+msgstr "Řecko"
+
+msgctxt "country"
+msgid "Greenland"
+msgstr "Grónsko"
+
+msgctxt "country"
+msgid "Grenada"
+msgstr "Grenada"
+
+msgctxt "country"
+msgid "Guadeloupe"
+msgstr "Guadeloupe"
+
+msgctxt "country"
+msgid "Guam"
+msgstr "Guam"
+
+msgctxt "country"
+msgid "Guatemala"
+msgstr "Guatemala"
+
+msgctxt "country"
+msgid "Guernsey"
+msgstr "Guernsey"
+
+msgctxt "country"
+msgid "Guinea"
+msgstr "Guinea"
+
+msgctxt "country"
+msgid "Guinea-Bissau"
+msgstr "Guinea-Bissau"
+
+msgctxt "country"
+msgid "Guyana"
+msgstr "Guayana"
+
+msgctxt "country"
+msgid "Haiti"
+msgstr "Haiti"
+
+msgctxt "country"
+msgid "Heard Island and McDonald Islands"
+msgstr "Heardův ostrov a McDonaldovy ostrovy"
+
+msgctxt "country"
+msgid "Honduras"
+msgstr "Honduras"
+
+msgctxt "country"
+msgid "Hong Kong"
+msgstr "Hong Kong"
+
+msgctxt "country"
+msgid "Hungary"
+msgstr "Maďarsko"
+
+msgctxt "country"
+msgid "Iceland"
+msgstr "Island"
+
+msgctxt "country"
+msgid "India"
+msgstr "Indie"
+
+msgctxt "country"
+msgid "Indonesia"
+msgstr "Indonésie"
+
+msgctxt "country"
+msgid "Iran"
+msgstr "Írán"
+
+msgctxt "country"
+msgid "Iraq"
+msgstr "Irák"
+
+msgctxt "country"
+msgid "Ireland"
+msgstr "Irsko"
+
+msgctxt "country"
+msgid "Isle of Man"
+msgstr "Ostrov Man"
+
+msgctxt "country"
+msgid "Israel"
+msgstr "Izrael"
+
+msgctxt "country"
+msgid "Italy"
+msgstr "Itálie"
+
+msgctxt "country"
+msgid "Ivory Coast"
+msgstr "Pobřeží slonoviny"
+
+msgctxt "country"
+msgid "Jamaica"
+msgstr "Jamajka"
+
+msgctxt "country"
+msgid "Japan"
+msgstr "Japonsko"
+
+msgctxt "country"
+msgid "Jersey"
+msgstr "Jersey"
+
+msgctxt "country"
+msgid "Jordan"
+msgstr "Jordánsko"
+
+msgctxt "country"
+msgid "Kazakhstan"
+msgstr "Kazachstán"
+
+msgctxt "country"
+msgid "Kenya"
+msgstr "Keňa"
+
+msgctxt "country"
+msgid "Kiribati"
+msgstr "Kiribati"
+
+msgctxt "country"
+msgid "Kosovo"
+msgstr "Kosovo"
+
+msgctxt "country"
+msgid "Kuwait"
+msgstr "Kuvajt"
+
+msgctxt "country"
+msgid "Kyrgyzstan"
+msgstr "Kyrgyzstán"
+
+msgctxt "country"
+msgid "Laos"
+msgstr "Laos"
+
+msgctxt "country"
+msgid "Latvia"
+msgstr "Lotyšsko"
+
+msgctxt "country"
+msgid "Lebanon"
+msgstr "Libanon"
+
+msgctxt "country"
+msgid "Lesotho"
+msgstr "Lesotho"
+
+msgctxt "country"
+msgid "Liberia"
+msgstr "Libérie"
+
+msgctxt "country"
+msgid "Libya"
+msgstr "Libye"
+
+msgctxt "country"
+msgid "Liechtenstein"
+msgstr "Lichtenštejnsko"
+
+msgctxt "country"
+msgid "Lithuania"
+msgstr "Litva"
+
+msgctxt "country"
+msgid "Luxembourg"
+msgstr "Lucembursko"
+
+msgctxt "country"
+msgid "Macao"
+msgstr "Macao"
+
+msgctxt "country"
+msgid "Macedonia"
+msgstr "Makedonie"
+
+msgctxt "country"
+msgid "Madagascar"
+msgstr "Madagaskar"
+
+msgctxt "country"
+msgid "Malawi"
+msgstr "Malawi"
+
+msgctxt "country"
+msgid "Malaysia"
+msgstr "Malajsie"
+
+msgctxt "country"
+msgid "Maldives"
+msgstr "Maledivy"
+
+msgctxt "country"
+msgid "Mali"
+msgstr "Mali"
+
+msgctxt "country"
+msgid "Malta"
+msgstr "Malta"
+
+msgctxt "country"
+msgid "Marshall Islands"
+msgstr "Marshallovy ostrovy"
+
+msgctxt "country"
+msgid "Martinique"
+msgstr "Martinik"
+
+msgctxt "country"
+msgid "Mauritania"
+msgstr "Mauretánie"
+
+msgctxt "country"
+msgid "Mauritius"
+msgstr "Mauricius"
+
+msgctxt "country"
+msgid "Mayotte"
+msgstr "Mayotte"
+
+msgctxt "country"
+msgid "Mexico"
+msgstr "Mexiko"
+
+msgctxt "country"
+msgid "Micronesia"
+msgstr "Mikronésie"
+
+msgctxt "country"
+msgid "Moldova"
+msgstr "Moldavsko"
+
+msgctxt "country"
+msgid "Monaco"
+msgstr "Monako"
+
+msgctxt "country"
+msgid "Mongolia"
+msgstr "Mongolsko"
+
+msgctxt "country"
+msgid "Montenegro"
+msgstr "Černá Hora"
+
+msgctxt "country"
+msgid "Montserrat"
+msgstr "Montserrat"
+
+msgctxt "country"
+msgid "Morocco"
+msgstr "Maroko"
+
+msgctxt "country"
+msgid "Mozambique"
+msgstr "Mosambik"
+
+msgctxt "country"
+msgid "Myanmar"
+msgstr "Myanmar"
+
+msgctxt "country"
+msgid "Namibia"
+msgstr "Namibie"
+
+msgctxt "country"
+msgid "Nauru"
+msgstr "Nauru"
+
+msgctxt "country"
+msgid "Nepal"
+msgstr "Nepál"
+
+msgctxt "country"
+msgid "Netherlands"
+msgstr "Nizozemsko"
+
+msgctxt "country"
+msgid "New Caledonia"
+msgstr "Nová Kaledonie"
+
+msgctxt "country"
+msgid "New Zealand"
+msgstr "Nový Zéland"
+
+msgctxt "country"
+msgid "Nicaragua"
+msgstr "Nikaragua"
+
+msgctxt "country"
+msgid "Niger"
+msgstr "Nigérie"
+
+msgctxt "country"
+msgid "Nigeria"
+msgstr "Nigérie"
+
+msgctxt "country"
+msgid "Niue"
+msgstr "Niue"
+
+msgctxt "country"
+msgid "Norfolk Island"
+msgstr "Norfolk"
+
+msgctxt "country"
+msgid "North Korea"
+msgstr "Severní Korea"
+
+msgctxt "country"
+msgid "Northern Mariana Islands"
+msgstr "Severní Mariany"
+
+msgctxt "country"
+msgid "Norway"
+msgstr "Norsko"
+
+msgctxt "country"
+msgid "Oman"
+msgstr "Omán"
+
+msgctxt "country"
+msgid "Pakistan"
+msgstr "Pákistán"
+
+msgctxt "country"
+msgid "Palau"
+msgstr "Palau"
+
+msgctxt "country"
+msgid "Palestinian Territory"
+msgstr "Palestinské území"
+
+msgctxt "country"
+msgid "Panama"
+msgstr "Panama"
+
+msgctxt "country"
+msgid "Papua New Guinea"
+msgstr "Papua-Nová Guinea"
+
+msgctxt "country"
+msgid "Paraguay"
+msgstr "Paraguay"
+
+msgctxt "country"
+msgid "Peru"
+msgstr "Peru"
+
+msgctxt "country"
+msgid "Philippines"
+msgstr "Filipíny"
+
+msgctxt "country"
+msgid "Pitcairn"
+msgstr "Pitcairn"
+
+msgctxt "country"
+msgid "Poland"
+msgstr "Polsko"
+
+msgctxt "country"
+msgid "Portugal"
+msgstr "Portugalsko"
+
+msgctxt "country"
+msgid "Puerto Rico"
+msgstr "Portoriko"
+
+msgctxt "country"
+msgid "Qatar"
+msgstr "Katar"
+
+msgctxt "country"
+msgid "Republic of the Congo"
+msgstr "Konžská republika"
+
+msgctxt "country"
+msgid "Reunion"
+msgstr "Réunion"
+
+msgctxt "country"
+msgid "Romania"
+msgstr "Rumunsko"
+
+msgctxt "country"
+msgid "Russia"
+msgstr "Rusko"
+
+msgctxt "country"
+msgid "Rwanda"
+msgstr "Rwanda"
+
+msgctxt "country"
+msgid "Saint Barthelemy"
+msgstr "Svatý Bartoloměj"
+
+msgctxt "country"
+msgid "Saint Helena"
+msgstr "Svatá Helena"
+
+msgctxt "country"
+msgid "Saint Kitts and Nevis"
+msgstr "Svatý Kryštof a Nevis"
+
+msgctxt "country"
+msgid "Saint Lucia"
+msgstr "Svatá Lucie"
+
+msgctxt "country"
+msgid "Saint Martin"
+msgstr "Svatý Martin"
+
+msgctxt "country"
+msgid "Saint Pierre and Miquelon"
+msgstr "Saint-Pierre a Miquelon"
+
+msgctxt "country"
+msgid "Saint Vincent and the Grenadines"
+msgstr "Svatý Vincent a Grenadiny"
+
+msgctxt "country"
+msgid "Samoa"
+msgstr "Samoa"
+
+msgctxt "country"
+msgid "San Marino"
+msgstr "San Marino"
+
+msgctxt "country"
+msgid "Sao Tome and Principe"
+msgstr "Svatý Tomáš a Princův ostrov"
+
+msgctxt "country"
+msgid "Saudi Arabia"
+msgstr "Saúdská Arábie"
+
+msgctxt "country"
+msgid "Senegal"
+msgstr "Senegal"
+
+msgctxt "country"
+msgid "Serbia"
+msgstr "Srbsko"
+
+msgctxt "country"
+msgid "Seychelles"
+msgstr "Seychely"
+
+msgctxt "country"
+msgid "Sierra Leone"
+msgstr "Sierra Leone"
+
+msgctxt "country"
+msgid "Singapore"
+msgstr "Singapur"
+
+msgctxt "country"
+msgid "Sint Maarten"
+msgstr "Svatý Martin"
+
+msgctxt "country"
+msgid "Slovakia"
+msgstr "Slovensko"
+
+msgctxt "country"
+msgid "Slovenia"
+msgstr "Slovinsko"
+
+msgctxt "country"
+msgid "Solomon Islands"
+msgstr "Šalamounovy ostrovy"
+
+msgctxt "country"
+msgid "Somalia"
+msgstr "Somálsko"
+
+msgctxt "country"
+msgid "South Africa"
+msgstr "Jihoafrická republika"
+
+msgctxt "country"
+msgid "South Georgia and the South Sandwich Islands"
+msgstr "Jižní Georgie a Jižní Sandwichovy ostrovy"
+
+msgctxt "country"
+msgid "South Korea"
+msgstr "Jižní Korea"
+
+msgctxt "country"
+msgid "South Sudan"
+msgstr "Jižní Súdán"
+
+msgctxt "country"
+msgid "Spain"
+msgstr "Španělsko"
+
+msgctxt "country"
+msgid "Sri Lanka"
+msgstr "Srí Lanka"
+
+msgctxt "country"
+msgid "Sudan"
+msgstr "Súdán"
+
+msgctxt "country"
+msgid "Suriname"
+msgstr "Surinam"
+
+msgctxt "country"
+msgid "Svalbard and Jan Mayen"
+msgstr "Špicberky a Jan Mayen"
+
+msgctxt "country"
+msgid "Swaziland"
+msgstr "Svazijsko"
+
+msgctxt "country"
+msgid "Sweden"
+msgstr "Švédsko"
+
+msgctxt "country"
+msgid "Switzerland"
+msgstr "Švýcarsko"
+
+msgctxt "country"
+msgid "Syria"
+msgstr "Sýrie"
+
+msgctxt "country"
+msgid "Taiwan"
+msgstr "Tchaj-wan"
+
+msgctxt "country"
+msgid "Tajikistan"
+msgstr "Tádžikistán"
+
+msgctxt "country"
+msgid "Tanzania"
+msgstr "Tanzánie"
+
+msgctxt "country"
+msgid "Thailand"
+msgstr "Thajsko"
+
+msgctxt "country"
+msgid "Togo"
+msgstr "Togo"
+
+msgctxt "country"
+msgid "Tokelau"
+msgstr "Tokelau"
+
+msgctxt "country"
+msgid "Tonga"
+msgstr "Tonga"
+
+msgctxt "country"
+msgid "Trinidad and Tobago"
+msgstr "Trinidad a Tobago"
+
+msgctxt "country"
+msgid "Tunisia"
+msgstr "Tunisko"
+
+msgctxt "country"
+msgid "Turkey"
+msgstr "Turecko"
+
+msgctxt "country"
+msgid "Turkmenistan"
+msgstr "Turkmenistán"
+
+msgctxt "country"
+msgid "Turks and Caicos Islands"
+msgstr "Ostrovy Turks a Caicos"
+
+msgctxt "country"
+msgid "Tuvalu"
+msgstr "Tuvalu"
+
+msgctxt "country"
+msgid "U.S. Virgin Islands"
+msgstr "Panenské ostrovy"
+
+msgctxt "country"
+msgid "Uganda"
+msgstr "Uganda"
+
+msgctxt "country"
+msgid "Ukraine"
+msgstr "Ukrajina"
+
+msgctxt "country"
+msgid "United Arab Emirates"
+msgstr "Spojené arabské emiráty"
+
+msgctxt "country"
+msgid "United Kingdom"
+msgstr "Velká Británie"
+
+msgctxt "country"
+msgid "United States"
+msgstr "Spojené státy americké"
+
+msgctxt "country"
+msgid "United States Minor Outlying Islands"
+msgstr "Menší odlehlé ostrovy Spojených států amerických"
+
+msgctxt "country"
+msgid "Uruguay"
+msgstr "Uruguay"
+
+msgctxt "country"
+msgid "Uzbekistan"
+msgstr "Uzbekistán"
+
+msgctxt "country"
+msgid "Vanuatu"
+msgstr "Vanuatu"
+
+msgctxt "country"
+msgid "Vatican"
+msgstr "Vatikán"
+
+msgctxt "country"
+msgid "Venezuela"
+msgstr "Venezuela"
+
+msgctxt "country"
+msgid "Vietnam"
+msgstr "Vietnam"
+
+msgctxt "country"
+msgid "Wallis and Futuna"
+msgstr "Wallis a Futuna"
+
+msgctxt "country"
+msgid "Western Sahara"
+msgstr "Západní Sahara"
+
+msgctxt "country"
+msgid "Yemen"
+msgstr "Jemen"
+
+msgctxt "country"
+msgid "Zambia"
+msgstr "Zambie"
+
+msgctxt "country"
+msgid "Zimbabwe"
+msgstr "Zimbabwe"
+
+msgctxt "error"
+msgid "Account info refresh failed, check your connection and try again"
+msgstr ""
+"Aktualizace údajů o účtu selhala. Zkontrolujte připojení a zkuste to znovu."
+
+msgctxt "error"
+msgid "An unknown error occurred"
+msgstr "Došlo k neznámé chybě"
+
+msgctxt "error"
+msgid "Authentication denied"
+msgstr "Ověření zamítnuto"
+
+msgctxt "error"
+msgid "Device disconnected"
+msgstr "Zařízení odpojeno"
+
+msgctxt "error"
+msgid "Enter a valid IPv4 or IPv6 address"
+msgstr "Zadejte platnou adresu IPv4 nebo IPv6"
+
+msgctxt "error"
+msgid "Incorrect 2FA code."
+msgstr "Nesprávný kód 2FA."
+
+msgctxt "error"
+msgid "Incorrect credentials."
+msgstr "Nesprávné přihlašovací údaje"
+
+msgctxt "error"
+msgid "Invalid username."
+msgstr "Neplatné uživatelské jméno."
+
+msgctxt "error"
+msgid ""
+"Looks like your system clock is out of sync.\n"
+"This may cause issues when connecting to VPN.\n"
+"Update your system time and try to connect again."
+msgstr ""
+"Zdá se, že vaše systémové hodiny nejsou synchronizované.\n"
+"To může způsobit problémy při připojování k VPN.\n"
+"Aktualizujte svůj systémový čas a zkuste se připojit znovu."
+
+msgctxt "error"
+msgid "Our servers are not reachable. Please check your internet connection."
+msgstr ""
+"Naše servery nejsou dostupné. Zkontrolujte prosím své připojení k internetu."
+
+msgctxt "error"
+msgid ""
+"Proton VPN could not connect to the VPN and blocked access to Internet to protect your IP.\n"
+"\n"
+"Click \"Cancel Connection\" to restore your Internet connection. If the issue persists please try to sign out and in."
+msgstr ""
+"Aplikace Proton VPN se nemohla připojit k VPN a zablokovala přístup k internetu, aby ochránila vaši IP adresu.\n"
+"\n"
+"Kliknutím na „Zrušit připojení“ obnovíte internetové připojení. Pokud problém přetrvává, zkuste se odhlásit a znovu přihlásit."
+
+msgctxt "error"
+msgid ""
+"Proton services could not be reached.\n"
+"Please try again."
+msgstr ""
+"Služby Protonu jsou nedostupné.\n"
+"Zkuste to prosím znovu."
+
+msgctxt "error"
+msgid "Session limit reached"
+msgstr "Dosažen limit relace"
+
+msgctxt "error"
+msgid "Something went wrong. Please try submitting your report at:\n"
+msgstr "Došlo k chybě. Zkuste prosím hlášení podat na:\n"
+
+msgctxt "error"
+msgid "There is not enough space left on your device."
+msgstr "Na vašem zařízení není dostatek volného místa."
+
+msgctxt "error"
+msgid "Timeout"
+msgstr "Vypršel časový limit"
+
+msgctxt "error"
+msgid "Tunnel setup failed"
+msgstr "Vytvoření tunelu selhalo"
+
+msgctxt "error"
+msgid ""
+"Two-factor authentication failed. Security key 2FA is not enabled for your "
+"account."
+msgstr ""
+"Dvoufázové ověření selhalo: U vašeho účtu není povolen bezpečnostní klíč 2FA"
+
+msgctxt "error"
+msgid "Two-factor authentication failed: Incorrect PIN"
+msgstr "Dvoufázové ověření selhalo: Nesprávný PIN"
+
+msgctxt "error"
+msgid "Two-factor authentication failed: No security key detected"
+msgstr "Dvoufázové ověření selhalo: Nebyl zjištěn žádný bezpečnostní klíč"
+
+msgctxt "error"
+msgid ""
+"Two-factor authentication failed: The security key you used is not linked to"
+" your Proton Account."
+msgstr ""
+"Dvoufázové ověření selhalo: Bezpečnostní klíč, který jste použili, není "
+"propojen s vaším účtem Proton."
+
+msgctxt "error"
+msgid "Two-factor authentication failed: Your security key has no PIN set"
+msgstr ""
+"Dvoufázové ověření selhalo: U vašeho bezpečnostního klíče není nastaven "
+"žádný PIN"
+
+msgctxt "error"
+msgid "Unable to sign out, please ensure you have internet access."
+msgstr ""
+"Odhlášení se nezdařilo. Ujistěte se prosím, že máte přístup k internetu."
+
+msgctxt "error"
+msgid "We're sorry, an unexpected error occurred. Please try again."
+msgstr "Omlouváme se, došlo k neočekávané chybě. Zkuste to prosím znovu."
+
+msgctxt "error"
+msgid ""
+"You are connected to the VPN, but all traffic is blocked.\n"
+"You need to go to the authentication page provided by security and authenticate with your hardware key.\n"
+"After that, the traffic will be enabled."
+msgstr ""
+"Jste připojeni k VPN, ale veškerý síťový provoz je zablokován.\n"
+"Musíte přejít na stránku pro ověření poskytnutou zabezpečením a ověřit se pomocí svého hardwarového klíče.\n"
+"Poté bude síťový provoz aktivován."
+
+msgctxt "error"
+msgid ""
+"You've reached your maximum device limit. To reconnect to VPN, please "
+"disconnect from another device."
+msgstr ""
+"Dosáhli jste limitu maximálního počtu zařízení. Chcete-li se znovu připojit "
+"k VPN, odpojte nejprve jiné zařízení."
+
+msgctxt "label"
+msgid "+{count}"
+msgstr "+{count}"
+
+msgctxt "label"
+msgid "0 is very unlikely"
+msgstr "0 je velmi nepravděpodobně"
+
+msgctxt "label"
+msgid "10 is very likely"
+msgstr "10 je velmi pravděpodobně"
+
+msgctxt "label"
+msgid "6-digit authentication code"
+msgstr "6místný ověřovací kód"
+
+msgctxt "label"
+msgid "Active port:"
+msgstr "Aktivní port:"
+
+msgctxt "label"
+msgid "Add new server"
+msgstr "Přidat nový server"
+
+msgctxt "label"
+msgid "Advanced"
+msgstr "Pokročilé"
+
+msgctxt "label"
+msgid "All countries ({count})"
+msgstr "Všechny země ({count})"
+
+msgctxt "label"
+msgid "Auto-selected from"
+msgstr "Automaticky vybráno z"
+
+msgctxt "label"
+msgid "Auto-selected from free locations"
+msgstr "Automaticky vybráno z bezplatných umístění"
+
+msgctxt "label"
+msgid "BETA"
+msgstr "BETA"
+
+msgctxt "label"
+msgid "Block Malware"
+msgstr "Blokování malware"
+
+msgctxt "label"
+msgid "Block ads, trackers and malware"
+msgstr "Blokování reklam, sledovacích prvků a malware"
+
+msgctxt "label"
+msgid "Description (minimum {count} characters)"
+msgstr "Popis (minimálně {count} znaků)"
+
+msgctxt "label"
+msgid "Email"
+msgstr "E-mail"
+
+msgctxt "label"
+msgid "Excluded apps "
+msgstr "Vyloučené aplikace "
+
+msgctxt "label"
+msgid "Free"
+msgstr "Free"
+
+msgctxt "label"
+msgid "Free server locations ({count})"
+msgstr "Umístění serverů Free ({count})"
+
+msgctxt "label"
+msgid "Get unlimited server changes with VPN Plus."
+msgstr "Získejte neomezený počet změn serverů s VPN Plus."
+
+msgctxt "label"
+msgid "Included apps "
+msgstr "Zahrnuté aplikace "
+
+msgctxt "label"
+msgid "Off"
+msgstr "Vyp."
+
+msgctxt "label"
+msgid "Optional"
+msgstr "Volitelné"
+
+msgctxt "label"
+msgid "PIN code"
+msgstr "PIN kód"
+
+msgctxt "label"
+msgid "Please let us know why you gave that rating"
+msgstr "Dejte nám prosím vědět důvod tohoto hodnocení"
+
+msgctxt "label"
+msgid "Proton VPN Linux Client"
+msgstr "Proton VPN pro Linux"
+
+msgctxt "label"
+msgid "Recovery code"
+msgstr "Kód pro obnovení"
+
+msgctxt "label"
+msgid "Server load"
+msgstr "Vytížení serveru"
+
+msgctxt "label"
+msgid "Standard"
+msgstr "Standardní"
+
+msgctxt "label"
+msgid "Use Proton protocols"
+msgstr "Použít protokoly Proton"
+
+msgctxt "label"
+msgid "Username"
+msgstr "Uživatelské jméno"
+
+msgctxt "label"
+msgid "VPN Plus"
+msgstr "VPN Plus"
+
+msgctxt "label"
+msgid "VPN plan: {plan}"
+msgstr "VPN tarif: {plan}"
+
+msgctxt "label"
+msgid "Via Secure Core"
+msgstr "Přes Secure Core"
+
+msgctxt "label"
+msgid "Via {country}"
+msgstr "Přes {country}"
+
+msgctxt "label"
+msgid "You've reached the maximum number of free server changes for now"
+msgstr "V této chvíli jste dosáhli maximálního počtu změn serverů Free"
+
+msgctxt "link"
+msgid "Learn more"
+msgstr "Více informací"
+
+msgctxt "menu"
+msgid "About"
+msgstr "O aplikaci"
+
+msgctxt "menu"
+msgid "Quit"
+msgstr "Ukončit"
+
+msgctxt "menu"
+msgid "Release notes"
+msgstr "Seznam změn"
+
+msgctxt "menu"
+msgid "Report an issue"
+msgstr "Nahlásit problém"
+
+msgctxt "menu"
+msgid "Settings"
+msgstr "Nastavení"
+
+msgctxt "menu"
+msgid "Sign out"
+msgstr "Odhlásit se"
+
+msgctxt "message"
+msgid ""
+"Access preferred connections from system tray. Enter country or server "
+"codes, separated by commas, to quickly connect (e.g.: NL#42, JP, US, IT#01)."
+msgstr ""
+"Mějte přístup k oblíbeným serverům přímo z oznamovací oblasti. Pro rychlé "
+"připojení zadejte kódy zemí nebo serverů oddělené čárkami (např. NL#42, JP, "
+"US, IT#01)."
+
+msgctxt "message"
+msgid "Account info refreshed, restart the app to see changes"
+msgstr ""
+"Údaje o účtu aktualizovány. Restartujte aplikaci, aby se změny projevily."
+
+msgctxt "message"
+msgid "Active port is {new_port}"
+msgstr "Aktivní port je {new_port}"
+
+msgctxt "message"
+msgid "Allow selected apps to connect without VPN protection."
+msgstr "Povolit vybraným aplikacím připojení bez ochrany VPN."
+
+msgctxt "message"
+msgid "Automatically disconnect from the internet if VPN connection is lost."
+msgstr "Automatické odpojení od internetu v případě ztráty spojení s VPN."
+
+msgctxt "message"
+msgid ""
+"Beta access has been disabled.\n"
+"Please restart the app for changes to take effect."
+msgstr ""
+"Přístup k beta verzi byl deaktivován.\n"
+"Pro uplatnění změn prosím restartujte aplikaci."
+
+msgctxt "message"
+msgid ""
+"Beta access has been enabled.\n"
+"Please restart the app for changes to take effect."
+msgstr ""
+"Přístup k beta verzi byl aktivován.\n"
+"Pro uplatnění změn prosím restartujte aplikaci."
+
+msgctxt "message"
+msgid ""
+"Bypass firewalls to connect to P2P servers and devices on your local "
+"network. "
+msgstr ""
+"Obejděte firewally a připojte se k P2P serverům a zařízením ve vaší místní "
+"síti. "
+
+msgctxt "message"
+msgid ""
+"Captures a specific issue you're facing when using Proton VPN to get help from our customer support team.\n"
+"\n"
+"Warning: This file is a recording of all your internet activity during the capture session."
+msgstr ""
+"Zaznamená konkrétní problém, se kterým se při používání Proton VPN potýkáte, aby vám náš tým zákaznické podpory mohl pomoci.\n"
+"\n"
+"Varování: Tento soubor obsahuje záznam veškeré vaší internetové aktivity během nahrávání."
+
+msgctxt "message"
+msgid "Change server is now available"
+msgstr "Funkce Změnit server je nyní k dispozici"
+
+msgctxt "message"
+msgid "Connect to Proton VPN using your own domain name servers (DNS)."
+msgstr ""
+"Připojte se k Proton VPN s využitím vlastních doménových serverů (DNS)."
+
+msgctxt "message"
+msgid ""
+"Connect to a Tor server to access hidden services and onion sites using any "
+"browser."
+msgstr ""
+"Připojte se k serveru Tor a získejte přístup ke skrytým službám a onion "
+"webům pomocí libovolného prohlížeče."
+
+msgctxt "message"
+msgid ""
+"Connect to your destination server through a second, maximum security VPN "
+"server. Slower, but more private."
+msgstr ""
+"Připojte se k cílovému serveru přes druhý, maximálně zabezpečený VPN server."
+" Je to pomalejší, ale diskrétnější."
+
+msgctxt "message"
+msgid "Copied!"
+msgstr "Zkopírováno!"
+
+msgctxt "message"
+msgid ""
+"Crash reports help us fix bugs, detect firewalls, and avoid VPN blocks.\n"
+"\n"
+"These statistics do not contain your IP address, and they cannot be used to identify you. We'll never share them with third parties."
+msgstr ""
+"Hlášení o pádech nám pomáhají opravovat chyby, detekovat firewally a předcházet blokování VPN.\n"
+"\n"
+"Tyto statistiky neobsahují vaši IP adresu a nelze je použít k vaší identifikaci. Nikdy je nebudeme sdílet se třetími stranami."
+
+msgctxt "message"
+msgid "Customize your connection by deciding which apps are protected by VPN."
+msgstr ""
+"Přizpůsobte si připojení tím, že se rozhodnete, které aplikace budou "
+"chráněny pomocí VPN."
+
+msgctxt "message"
+msgid ""
+"Disables randomization of the local addresses mapping. This can slightly "
+"reduce connection security, but should allow direct connections for online "
+"gaming and similar purposes."
+msgstr ""
+"Vypne náhodné mapování lokálních adres. To může mírně snížit zabezpečení "
+"připojení, ale mělo by umožnit přímé spojení pro online hraní a podobné "
+"účely."
+
+msgctxt "message"
+msgid "Disabling Beta access..."
+msgstr "Deaktivace přístupu k beta verzi..."
+
+msgctxt "message"
+msgid "Each code can only be used once"
+msgstr "Každý kód lze použít pouze jednou"
+
+msgctxt "message"
+msgid "Enabling Beta access..."
+msgstr "Aktivovat přístup k beta verzi..."
+
+msgctxt "message"
+msgid ""
+"Free-tier launches default to a Proton protocol. Any WireGuard or OpenVPN "
+"selection lasts only until the next application restart."
+msgstr ""
+"U bezplatných účtů je jako výchozí nastaven protokol Proton. Jakékoli "
+"nastavení protokolu WireGuard nebo OpenVPN platí pouze do dalšího restartu "
+"aplikace."
+
+msgctxt "message"
+msgid "Get early access and help us test new versions of Proton VPN."
+msgstr ""
+"Získejte předběžný přístup a pomozte nám testovat nové verze Proton VPN."
+
+msgctxt "message"
+msgid "If your security key has a button or a gold disc, tap it now."
+msgstr ""
+"Pokud má váš bezpečnostní klíč tlačítko nebo zlatý kotouč, klepněte na něj "
+"nyní."
+
+msgctxt "message"
+msgid ""
+"Increase your connection speed by up to 400% with performance enhancing "
+"technologies."
+msgstr ""
+"Zvyšte rychlost vašeho připojení až o 400 % pomocí technologií zvyšujících "
+"výkon."
+
+msgctxt "message"
+msgid "Insert the U2F or FIDO key linked to your Proton Account. "
+msgstr "Vložte klíč U2F nebo FIDO propojený s vaším účtem Proton. "
+
+msgctxt "message"
+msgid "It was not possible to disable Beta access.\n"
+msgstr "Přístup k beta verzi nebylo možné deaktivovat.\n"
+
+msgctxt "message"
+msgid "It was not possible to enable Beta access.\n"
+msgstr "Přístup k beta verzi nebylo možné aktivovat.\n"
+
+msgctxt "message"
+msgid "Kill switch can only be changed when VPN is disconnected."
+msgstr "Kill Switch lze změnit, pouze pokud je VPN odpojená."
+
+msgctxt "message"
+msgid "Kill switch is blocking any outgoing connections."
+msgstr "Kill Switch blokuje všechna odchozí spojení."
+
+msgctxt "message"
+msgid ""
+"Kill switch selection is disabled while VPN is active. Disconnect to make "
+"changes."
+msgstr ""
+"Během aktivního VPN připojení nelze měnit Kill Switch. Chcete-li provést "
+"změny, odpojte se."
+
+msgctxt "message"
+msgid "Loading app..."
+msgstr "Načítání aplikace..."
+
+msgctxt "message"
+msgid "Multiple security keys were found. Tap one to select it."
+msgstr ""
+"Bylo nalezeno několik bezpečnostních klíčů. Klepnutím na jeden z nich jej "
+"vyberte."
+
+msgctxt "message"
+msgid ""
+"Only allow internet access when connected to Proton VPN. Advanced kill "
+"switch will remain active even when you restart your device."
+msgstr ""
+"Povolte přístup k internetu pouze při připojení k Proton VPN. Pokročilý Kill"
+" Switch zůstane aktivní, i když restartujete zařízení."
+
+msgctxt "message"
+msgid ""
+"Only selected apps connect with VPN protection. All other traffic is "
+"unprotected."
+msgstr ""
+"Pouze vybrané aplikace se připojí s ochranou VPN. Ostatní provoz nebude "
+"chráněn."
+
+msgctxt "message"
+msgid ""
+"Permanent Kill Switch is blocking any outgoing connections and preventing your IP to be exposed.\n"
+"\n"
+"Do you want to disable Kill Switch?"
+msgstr ""
+"Trvalý Kill Switch blokuje veškerá odchozí spojení a zabraňuje odhalení vaší IP adresy.\n"
+"\n"
+"Chcete deaktivovat Kill Switch?"
+
+msgctxt "message"
+msgid "Please establish a new VPN connection for changes to take effect."
+msgstr "Pro uplatnění změn se prosím znovu připojte k VPN."
+
+msgctxt "message"
+msgid "Protect yourself from ads, malware, and trackers on websites and apps."
+msgstr ""
+"Chraňte se před reklamou, malware a sledovacími prvky na webech a v "
+"aplikacích."
+
+msgctxt "message"
+msgid ""
+"Protects your IP address by disconnecting you from the internet if you lose "
+"your VPN connection. {learn_more}"
+msgstr ""
+"Chrání vaši IP adresu tím, že vás odpojí od internetu, pokud ztratíte "
+"připojení k VPN. {learn_more}"
+
+msgctxt "message"
+msgid "Protocol can only be changed when VPN is disconnected."
+msgstr "Protokol lze změnit, pouze pokud je VPN odpojená."
+
+msgctxt "message"
+msgid ""
+"Protocol selection is disabled while VPN is active. Disconnect to make "
+"changes."
+msgstr ""
+"Během aktivního VPN připojení nelze měnit síťový protokol. Chcete-li provést"
+" změny, odpojte se."
+
+msgctxt "message"
+msgid ""
+"Proton Free automatically connects you to the fastest free server available."
+" This is usually the closest server to your location."
+msgstr ""
+"Proton Free vás automaticky připojí k nejrychlejšímu dostupnému bezplatnému "
+"serveru. Obvykle se jedná o server, který je nejblíže vaší poloze."
+
+msgctxt "message"
+msgid ""
+"Quitting the application will cancel the current VPN connection.\n"
+"\n"
+"Do you want to continue?"
+msgstr ""
+"Ukončením aplikace se zruší aktuální připojení k VPN.\n"
+"\n"
+"Chcete pokračovat?"
+
+msgctxt "message"
+msgid ""
+"Quitting the application will keep the kill switch active, but your current VPN connection will be terminated.\n"
+"\n"
+"Do you want to continue?"
+msgstr ""
+"Ukončením aplikace zůstane Kill Switch aktivní, ale vaše aktuální připojení k VPN bude přerušeno.\n"
+"\n"
+"Chcete pokračovat?"
+
+msgctxt "message"
+msgid "Reporting your issue..."
+msgstr "Odesílání hlášení o problému..."
+
+msgctxt "message"
+msgid "Signing in..."
+msgstr "Přihlašování..."
+
+msgctxt "message"
+msgid ""
+"Signing out will cancel the current VPN connection and disable the kill switch.\n"
+"\n"
+"Do you want to continue?"
+msgstr ""
+"Odhlášením se zruší aktuální připojení k VPN a vypne se Kill Switch.\n"
+"\n"
+"Chcete pokračovat?"
+
+msgctxt "message"
+msgid ""
+"Signing out will cancel the current VPN connection.\n"
+"\n"
+"Do you want to continue?"
+msgstr ""
+"Odhlášením se zruší aktuální připojení k VPN.\n"
+"\n"
+"Chcete pokračovat?"
+
+msgctxt "message"
+msgid ""
+"Signing out will disable the kill switch, potentially exposing your internet traffic. \n"
+"\n"
+"Do you want to continue?"
+msgstr ""
+"Odhlášením se deaktivuje Kill Switch, což může vést k odhalení vašeho internetového provozu. \n"
+"\n"
+"Chcete pokračovat?"
+
+msgctxt "message"
+msgid "Signing out..."
+msgstr "Odhlašování..."
+
+msgctxt "message"
+msgid ""
+"Some required components were not detected on your system. The app may not "
+"work as expected."
+msgstr ""
+"Ve vašem systému nebyly zjištěny některé požadované součásti. Aplikace "
+"nemusí fungovat tak, jak by měla."
+
+msgctxt "message"
+msgid "Split tunneling enabled. Remember to restart affected apps."
+msgstr "Split tunneling je aktivní. Nezapomeňte restartovat dotčené aplikace."
+
+msgctxt "message"
+msgid ""
+"These servers give the best performance for BitTorrent and file sharing."
+msgstr ""
+"Tyto servery poskytují nejvyšší výkony pro BitTorrent a sdílení souborů."
+
+msgctxt "message"
+msgid ""
+"This technology allows Proton VPN to provide higher speed and security in "
+"difficult-to-reach countries."
+msgstr ""
+"Tato technologie umožňuje, aby aplikace Proton VPN byly rychlejší a "
+"bezpečnější v zemích, které nerespektují soukromí."
+
+msgctxt "message"
+msgid "This will automatically set your protocol to WireGuard."
+msgstr "Tímto se váš protokol automaticky nastaví na WireGuard."
+
+msgctxt "message"
+msgid "This will disable NetShield."
+msgstr "Tím se deaktivuje NetShield."
+
+msgctxt "message"
+msgid "This will disable custom DNS."
+msgstr "Tím se deaktivuje vlastní DNS."
+
+msgctxt "message"
+msgid "This will disable kill switch."
+msgstr "Tím se deaktivuje Kill Switch"
+
+msgctxt "message"
+msgid "This will disable split tunneling."
+msgstr "Tímto zakážete split tunneling."
+
+msgctxt "message"
+msgid ""
+"Tunnels IPv6 traffic through the VPN. Can enhance compatibility with IPv6 "
+"networks."
+msgstr ""
+"Tuneluje přenos IPv6 skrze VPN. Může zvýšit kompatibilitu se sítěmi IPv6."
+
+msgctxt "message"
+msgid ""
+"Usage data helps us overcome VPN blocks and improve app performance.\n"
+"\n"
+"These statistics do not contain your IP address, and they cannot be used to identify you. We'll never share them with third parties."
+msgstr ""
+"Údaje o používání nám pomáhají překonávat blokování VPN a zlepšovat výkon aplikace.\n"
+"\n"
+"Tyto statistiky neobsahují vaši IP adresu a nelze je použít k vaší identifikaci. Nikdy je nebudeme sdílet s třetími stranami."
+
+msgctxt "message"
+msgid "When enabled, the app starts minimized to the tray."
+msgstr "Při zapnutí se aplikace spouští minimalizovaná do oznamovací oblasti."
+
+msgctxt "message"
+msgid ""
+"You will be connected to a server as soon as Proton VPN app starts. Replace "
+"it with a country ISO code (e.g.: US for United States), a server (e.g.: "
+"NL#42) or Fastest for quick connection. Default value: Off."
+msgstr ""
+"K serveru se připojíte hned po spuštění aplikace Proton VPN. Nahraďte jej "
+"kódem země ISO (např. US pro Spojené státy), konkrétním serverem (např. "
+"NL#42) nebo hodnotou Nejrychlejší pro rychlé připojení. Výchozí hodnota: "
+"Vypnuto."
+
+msgctxt "message"
+msgid "Your feedback helps us improve Proton VPN."
+msgstr "Vaše zpětná vazba nám pomáhá zlepšovat Proton VPN."
+
+msgctxt "message"
+msgid "Your issue has been reported"
+msgstr "Hlášení o problému bylo odesláno"
+
+msgctxt "message"
+msgid "Your session has expired. Please sign in again."
+msgstr "Vaše relace vypršela, musíte se znovu přihlásit."
+
+msgctxt "message"
+msgid "{learn_more} about requirements and alternative installation methods."
+msgstr "{learn_more} o požadavcích a alternativních způsobech instalace."
+
+msgctxt "placeholder"
+msgid "Password"
+msgstr "Heslo"
+
+msgctxt "placeholder"
+msgid "Press Ctrl+F to search"
+msgstr "Stiskněte Ctrl+F pro vyhledávání"
+
+msgctxt "placeholder"
+msgid "Username"
+msgstr "Uživatelské jméno"
+
+msgctxt "status"
+msgid "Connecting..."
+msgstr "Připojování..."
+
+msgctxt "status"
+msgid "Connection error"
+msgstr "Chyba připojení"
+
+msgctxt "status"
+msgid "Disconnecting..."
+msgstr "Odpojování..."
+
+msgctxt "status"
+msgid "Protected"
+msgstr "Chráněno"
+
+msgctxt "status"
+msgid "Unprotected"
+msgstr "Nechráněno"
+
+msgctxt "title"
+msgid "2FA Required"
+msgstr "Vyžadováno 2FA"
+
+msgctxt "title"
+msgid "About"
+msgstr "O aplikaci"
+
+msgctxt "title"
+msgid "Account"
+msgstr "Účet"
+
+msgctxt "title"
+msgid "Active connection found"
+msgstr "Nalezeno aktivní připojení"
+
+msgctxt "title"
+msgid "Add excluded apps"
+msgstr "Přidat vyloučené aplikace"
+
+msgctxt "title"
+msgid "Add included apps"
+msgstr "Přidat zahrnuté aplikace"
+
+msgctxt "title"
+msgid "Authenticator app"
+msgstr "Ověřovací aplikace"
+
+msgctxt "title"
+msgid "Auto connect"
+msgstr "Automatické připojení"
+
+msgctxt "title"
+msgid "Beta Access"
+msgstr "Beta přístup"
+
+msgctxt "title"
+msgid "Beta access"
+msgstr "Beta přístup"
+
+msgctxt "title"
+msgid "Connection"
+msgstr "Připojení"
+
+msgctxt "title"
+msgid "Connection error: session limit reached"
+msgstr "Chyba připojení: překročen limit aktivních zařízení"
+
+msgctxt "title"
+msgid "Countries"
+msgstr "Země"
+
+msgctxt "title"
+msgid "Create a troubleshooting file"
+msgstr "Vytvořit soubor pro řešení problémů"
+
+msgctxt "title"
+msgid "Custom DNS servers"
+msgstr "Vlastní servery DNS"
+
+msgctxt "title"
+msgid "Disable WireGuard?"
+msgstr "Deaktivovat WireGuard?"
+
+msgctxt "title"
+msgid "Enable Custom DNS"
+msgstr "Povolit vlastní DNS"
+
+msgctxt "title"
+msgid "Enable Custom DNS?"
+msgstr "Povolit vlastní DNS?"
+
+msgctxt "title"
+msgid "Enable Netshield"
+msgstr "Aktivovat NetShield"
+
+msgctxt "title"
+msgid "Enable Netshield ?"
+msgstr "Aktivovat NetShield?"
+
+msgctxt "title"
+msgid "Enable kill switch?"
+msgstr "Povolit Kill Switch?"
+
+msgctxt "title"
+msgid "Enable split tunneling?"
+msgstr "Povolit split tunneling?"
+
+msgctxt "title"
+msgid "Exclude mode"
+msgstr "Režim vyloučení"
+
+msgctxt "title"
+msgid "Fastest country"
+msgstr "Nejrychlejší země"
+
+msgctxt "title"
+msgid "Fastest free server"
+msgstr "Nejrychlejší bezplatný server"
+
+msgctxt "title"
+msgid "Features"
+msgstr "Funkce"
+
+msgctxt "title"
+msgid "Free connections"
+msgstr "Připojení Free"
+
+msgctxt "title"
+msgid "General"
+msgstr "Obecné"
+
+msgctxt "title"
+msgid "How likely are you to recommend Proton VPN to a friend?"
+msgstr "Jaká je pravděpodobnost, že doporučíte Proton VPN svému příteli?"
+
+msgctxt "title"
+msgid "Include mode"
+msgstr "Režim zahrnutí"
+
+msgctxt "title"
+msgid "Invalid Session"
+msgstr "Neplatná relace"
+
+msgctxt "title"
+msgid "Kill Switch Enabled"
+msgstr "Kill Switch povolen"
+
+msgctxt "title"
+msgid "Kill Switch enabled"
+msgstr "Kill Switch aktivován"
+
+msgctxt "title"
+msgid "Kill switch"
+msgstr "Kill Switch"
+
+msgctxt "title"
+msgid "Locations"
+msgstr "Umístění"
+
+msgctxt "title"
+msgid "Moderate NAT"
+msgstr "Moderate NAT"
+
+msgctxt "title"
+msgid "NetShield"
+msgstr "NetShield"
+
+msgctxt "title"
+msgid "No space left on device"
+msgstr "V zařízení není žádné volné místo"
+
+msgctxt "title"
+msgid "P2P/BitTorrent"
+msgstr "P2P/BitTorrent"
+
+msgctxt "title"
+msgid "Pinned tray connections"
+msgstr "Připnutá připojení v oznamovací oblasti"
+
+msgctxt "title"
+msgid "Port forwarding"
+msgstr "Přesměrování portů"
+
+msgctxt "title"
+msgid "Protocol"
+msgstr "Protokol"
+
+msgctxt "title"
+msgid "Release notes"
+msgstr "Seznam změn"
+
+msgctxt "title"
+msgid "Report an Issue"
+msgstr "Nahlásit problém"
+
+msgctxt "title"
+msgid "Secure Core"
+msgstr "Secure Core"
+
+msgctxt "title"
+msgid "Security key"
+msgstr "Bezpečnostní klíč"
+
+msgctxt "title"
+msgid "Select packet capture directory"
+msgstr "Vyberte adresář pro ukládání zachycených paketů"
+
+msgctxt "title"
+msgid "Servers"
+msgstr "Servery"
+
+msgctxt "title"
+msgid "Settings"
+msgstr "Nastavení"
+
+msgctxt "title"
+msgid "Share anonymous crash reports"
+msgstr "Sdílejte anonymní hlášení o pádech"
+
+msgctxt "title"
+msgid "Share anonymous usage statistics"
+msgstr "Sdílet anonymní statistiky o používání"
+
+msgctxt "title"
+msgid "Smart routing"
+msgstr "Chytré směrování"
+
+msgctxt "title"
+msgid "Something went wrong"
+msgstr "Něco se pokazilo"
+
+msgctxt "title"
+msgid "Split tunneling"
+msgstr "Split tunneling"
+
+msgctxt "title"
+msgid "Start app minimized"
+msgstr "Spustit aplikaci minimalizovaně"
+
+msgctxt "title"
+msgid "Thanks for your feedback"
+msgstr "Děkujeme za zpětnou vazbu"
+
+msgctxt "title"
+msgid "Tor"
+msgstr "Tor"
+
+msgctxt "title"
+msgid "Two-factor authentication"
+msgstr "Dvoufázové ověření"
+
+msgctxt "title"
+msgid "Unable to find server"
+msgstr "Nelze najít server"
+
+msgctxt "title"
+msgid "Update system clock"
+msgstr "Aktualizovat systémové hodiny"
+
+msgctxt "title"
+msgid "VPN Accelerator"
+msgstr "VPN Accelerator"
+
+msgctxt "title"
+msgid "VPN connection error"
+msgstr "Chyba připojení k VPN"
+
+msgctxt "tooltip"
+msgid "Clear"
+msgstr "Vyčistit"
+
+msgctxt "tooltip"
+msgid "Close"
+msgstr "Zavřít"
+
+msgctxt "tooltip"
+msgid "Connect to {country_name}"
+msgstr "Připojit k {country_name}"
+
+msgctxt "tooltip"
+msgid "Connect to {country} via Secure Core"
+msgstr "Připojit se k {country} přes Secure Core"
+
+msgctxt "tooltip"
+msgid "Connect to {exit_country} via {entry_country}"
+msgstr "Připojit k {exit_country} přes {entry_country}"
+
+msgctxt "tooltip"
+msgid "Connect to {name}"
+msgstr "Připojit k {name}"
+
+msgctxt "tooltip"
+msgid "Copy port number"
+msgstr "Kopírovat číslo portu"
+
+msgctxt "tooltip"
+msgid "Free server locations"
+msgstr "Umístění serverů Free"
+
+msgctxt "tooltip"
+msgid ""
+"Hide all Secure Core servers\n"
+"to connect to {country}"
+msgstr ""
+"Skrýt všechny servery Secure Core\n"
+"pro připojení k {country}"
+
+msgctxt "tooltip"
+msgid "Hide all locations from {country_name}"
+msgstr "Skrýt všechna umístění z {country_name}"
+
+msgctxt "tooltip"
+msgid "Hide all servers from {name}"
+msgstr "Skrýt všechny servery z {name}"
+
+msgctxt "tooltip"
+msgid "P2P/BitTorrent supported"
+msgstr "Podpora P2P/BitTorrent"
+
+msgctxt "tooltip"
+msgid "Refresh account details"
+msgstr "Aktualizovat údaje o účtu"
+
+msgctxt "tooltip"
+msgid ""
+"Secure Core server that connects to {exit_country} through {entry_country}."
+msgstr ""
+"Server Secure Core, který vás připojí k zemi {exit_country} přes "
+"{entry_country}."
+
+msgctxt "tooltip"
+msgid "Secure Core supported"
+msgstr "Podpora Secure Core"
+
+msgctxt "tooltip"
+msgid "Server load is at {load}%"
+msgstr "Vytížení serveru je {load} %"
+
+msgctxt "tooltip"
+msgid ""
+"Show all Secure Core servers\n"
+"to connect to {country}"
+msgstr ""
+"Zobrazit všechny servery Secure Core\n"
+"pro připojení k {country}"
+
+msgctxt "tooltip"
+msgid "Show all locations from {country_name}"
+msgstr "Zobrazit všechna umístění z {country_name}"
+
+msgctxt "tooltip"
+msgid "Show all servers from {name}"
+msgstr "Zobrazit všechny servery z {name}"
+
+msgctxt "tooltip"
+msgid "Smart routing is used"
+msgstr "Používá se funkce Smart Routing"
+
+msgctxt "tooltip"
+msgid "Streaming supported"
+msgstr "Podpora streamování"
+
+msgctxt "tooltip"
+msgid "To change split tunneling settings, please disconnect the VPN first."
+msgstr ""
+"Chcete-li změnit nastavení split tunneling, nejprve se odpojte od VPN."
+
+msgctxt "tooltip"
+msgid "Tor supported"
+msgstr "Podpora Tor"
+
+msgctxt "tooltip"
+msgid "Upgrade to connect to {country_name}"
+msgstr "Přejděte na vyšší tarif a připojte se k zemi {country_name}"
+
+msgctxt "tooltip"
+msgid "Upgrade to connect to {country} via Secure Core"
+msgstr ""
+"Přejděte na vyšší tarif a připojte se k zemi {country} přes Secure Core"
+
+msgctxt "tooltip"
+msgid "Upgrade to connect to {exit_country} via {entry_country}"
+msgstr ""
+"Přejděte na vyšší tarif a připojte se k zemi {exit_country} přes "
+"{entry_country}"
+
+msgctxt "tooltip"
+msgid "Upgrade to connect to {name}"
+msgstr "Přejděte na vyšší tarif a připojte se k zemi {name}"
+
+msgctxt "tooltip"
+msgid "{name} is under maintenance"
+msgstr "Na serveru {name} probíhá údržba"

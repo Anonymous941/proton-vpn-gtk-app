@@ -20,9 +20,13 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with ProtonVPN.  If not, see <https://www.gnu.org/licenses/>.
 """
+from typing import Union, Callable, Optional
 from gi.repository import Pango
 from proton.vpn.app.gtk import Gtk
 from proton.vpn import logging
+from proton.vpn.app.gtk.translator import C_
+from proton.vpn.app.gtk.utils.safe_signal_connect import safe_signal_connect
+from proton.vpn.app.gtk.utils.window import register_proton_window
 
 logger = logging.getLogger(__name__)
 
@@ -32,25 +36,75 @@ class ConfirmationDialog(Gtk.Dialog):
     WIDTH = 150
     HEIGHT = 200
 
-    def __init__(self, message: str, title: str):
+    def __init__(
+        self, message: Union[Gtk.Widget, str],
+        title: str,
+        yes_text: Optional[str] = None, no_text: Optional[str] = None
+    ):
         super().__init__()
+        register_proton_window(self)
         self.set_title(title)
         self.set_default_size(self.WIDTH, self.HEIGHT)
 
-        yes_button = self.add_button("_Yes", Gtk.ResponseType.YES)
-        no_button = self.add_button("_No", Gtk.ResponseType.NO)
+        yes_button = self.add_button(
+            C_("button", "_Yes") if not yes_text else yes_text, Gtk.ResponseType.YES)
+        no_button = self.add_button(
+            C_("button", "_No") if not no_text else no_text, Gtk.ResponseType.NO)
 
-        no_button.get_style_context().add_class("primary")
-        yes_button.get_style_context().add_class("danger")
+        no_button.add_css_class("primary")
+        yes_button.add_css_class("danger")
 
-        label = Gtk.Label(label=message)
-        label.set_width_chars(50)
-        label.set_max_width_chars(50)
-        label.set_line_wrap(True)
-        label.set_line_wrap_mode(Pango.WrapMode.WORD)
+        widget: Gtk.Widget
+        if isinstance(message, str):
+            widget = Gtk.Label(label=message)
+            widget.set_width_chars(50)
+            widget.set_max_width_chars(50)
+            widget.set_wrap(True)
+            widget.set_wrap_mode(Pango.WrapMode.WORD)
+        else:
+            widget = message
 
-        # By default Gtk.Dialog has a vertical box child (Gtk.Box) `vbox`
-        self.vbox.set_border_width(20)  # pylint: disable=no-member
-        self.vbox.set_spacing(20)  # pylint: disable=no-member
-        self.vbox.add(label)  # pylint: disable=no-member
-        self.connect("realize", lambda _: self.show_all())
+        content_area: Gtk.Box = self.get_content_area()
+        content_area.set_margin_top(20)
+        content_area.set_margin_bottom(20)
+        content_area.set_margin_start(20)
+        content_area.set_margin_end(20)
+        content_area.set_spacing(20)
+        content_area.append(widget)
+
+
+def show_confirmation_dialog(  # pylint: disable=too-many-arguments
+        parent: Gtk.Widget,
+        title: str,
+        question: str,
+        clarification: str,
+        yes_text: str,
+        no_text: str,
+        callback_result: Callable[[ConfirmationDialog, int], None]):
+    """
+    Shows a confirmation dialog with a question and a clarification.
+    """
+    container = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+    container.set_spacing(10)
+
+    question_label = Gtk.Label(label=question)
+    question_label.set_halign(Gtk.Align.START)
+
+    clarification_label = Gtk.Label(label=clarification)
+    clarification_label.set_halign(Gtk.Align.START)
+    clarification_label.add_css_class("dim-label")
+
+    container.append(question_label)
+    container.append(clarification_label)
+
+    dialog = ConfirmationDialog(
+        message=container,
+        title=title,
+        yes_text=yes_text,
+        no_text=no_text
+    )
+    dialog.set_default_size(400, 200)
+    dialog.set_modal(True)
+    dialog.set_transient_for(parent)
+    safe_signal_connect(dialog, "response", callback_result)
+    dialog.present()

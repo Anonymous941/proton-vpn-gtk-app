@@ -25,11 +25,14 @@ from concurrent.futures import Future
 from gi.repository import Gio, GLib, GObject
 from proton.vpn.app.gtk import Gtk
 
+from proton.vpn.connection.states import State, Disconnected
 from proton.vpn.app.gtk.widgets.headerbar.menu.bug_report_dialog import BugReportDialog
 from proton.vpn.app.gtk.widgets.headerbar.menu.about_dialog import AboutDialog
 from proton.vpn.app.gtk.widgets.main.confirmation_dialog import ConfirmationDialog
 from proton.vpn.app.gtk.controller import Controller
+from proton.vpn.app.gtk.translator import C_
 from proton.vpn.app.gtk.widgets.main.loading_widget import OverlayWidget, DefaultLoadingWidget
+from proton.vpn.app.gtk.utils.safe_signal_connect import safe_signal_connect
 from proton.vpn.app.gtk.widgets.headerbar.menu.settings import SettingsWindow
 from proton.vpn.app.gtk.widgets.headerbar.menu.release_notes_dialog import ReleaseNotesDialog
 from proton.vpn.connection.enum import KillSwitchSetting as KillSwitchSettingEnum
@@ -46,23 +49,41 @@ if TYPE_CHECKING:
 class Menu(Gio.Menu):  # pylint: disable=too-many-instance-attributes
     """App menu shown in the header bar."""
 
-    LOGOUT_LOADING_MESSAGE = "Logging out..."
-    UNABLE_TO_LOGOUT_MESSAGE = "Unable to logout, please ensure you have internet access."
-    DISCONNECT_ON_LOGOUT_MESSAGE = "Logging out of the application will cancel the current " \
-                                   "VPN connection.\n\nDo you want to continue?"
-    DISCONNECT_ON_LOGOUT_WITH_KILL_SWITCH_ENABLED_MESSAGE = "Logging out of the application "\
-        "will cancel the current VPN connection and disable the kill switch."\
+    LOGOUT_LOADING_MESSAGE = C_("message", "Signing out...")
+    UNABLE_TO_LOGOUT_MESSAGE = C_(
+        "error",
+        "Unable to sign out, please ensure you have internet access."
+    )
+    DISCONNECT_ON_LOGOUT_MESSAGE = C_(
+        "message",
+        "Signing out will cancel the current VPN connection.\n\n"
+        "Do you want to continue?"
+    )
+    DISCONNECT_ON_LOGOUT_WITH_KILL_SWITCH_ENABLED_MESSAGE = C_(
+        "message",
+        "Signing out "
+        "will cancel the current VPN connection and disable the kill switch."
         "\n\nDo you want to continue?"
-    LOGOUT_AND_KILL_SWITCH_ENABLED_MESSAGE = "Logging out of the application will "\
-        "disable the kill switch, potentially exposing your internet traffic. "\
+    )
+    LOGOUT_AND_KILL_SWITCH_ENABLED_MESSAGE = C_(
+        "message",
+        "Signing out will "
+        "disable the kill switch, potentially exposing your internet traffic. "
         "\n\nDo you want to continue?"
-    DISCONNECT_ON_QUIT_MESSAGE = "Quitting the application will cancel the current" \
-                                 " VPN connection.\n\nDo you want to continue?"
-    DISCONNECT_ON_QUIT_WITH_PERMANENT_KILL_SWITCH_ENABLED_MESSAGE = "Quitting the application "\
-        "will keep the kill switch active, but your current VPN connection will be terminated."\
+    )
+    DISCONNECT_ON_QUIT_MESSAGE = C_(
+        "message",
+        "Quitting the application will cancel the current"
+        " VPN connection.\n\nDo you want to continue?"
+    )
+    DISCONNECT_ON_QUIT_WITH_PERMANENT_KILL_SWITCH_ENABLED_MESSAGE = C_(
+        "message",
+        "Quitting the application "
+        "will keep the kill switch active, but your current VPN connection will be terminated."
         "\n\nDo you want to continue?"
-    DISCONNECT_TITLE = "Active connection found"
-    KILLSWITCH_ENABLED_TITLE = "Kill Switch enabled"
+    )
+    DISCONNECT_TITLE = C_("title", "Active connection found")
+    KILLSWITCH_ENABLED_TITLE = C_("title", "Kill Switch enabled")
 
     def __init__(
         self, controller: Controller,
@@ -80,14 +101,27 @@ class Menu(Gio.Menu):  # pylint: disable=too-many-instance-attributes
         self.logout_action = Gio.SimpleAction.new("logout", None)
         self.quit_action = Gio.SimpleAction.new("quit", None)
 
-        self.append_item(Gio.MenuItem.new("About", "win.about"))
-        self.append_item(Gio.MenuItem.new("Settings", "win.settings"))
-        self.append_item(Gio.MenuItem.new("Release notes", "win.release_notes"))
-        self.append_item(Gio.MenuItem.new("Report an issue", "win.report"))
-        self.append_item(Gio.MenuItem.new("Logout", "win.logout"))
-        self.append_item(Gio.MenuItem.new("Quit", "win.quit"))
+        self.append_item(Gio.MenuItem.new(C_("menu", "About"), "win.about"))
+        self.append_item(Gio.MenuItem.new(C_("menu", "Settings"), "win.settings"))
+        self.append_item(Gio.MenuItem.new(C_("menu", "Release notes"), "win.release_notes"))
+        self.append_item(Gio.MenuItem.new(C_("menu", "Report an issue"), "win.report"))
+        self.append_item(Gio.MenuItem.new(C_("menu", "Sign out"), "win.logout"))
+        self.append_item(Gio.MenuItem.new(C_("menu", "Quit"), "win.quit"))
+
+        self._settings_window = None
+        self._bug_dialog = None
+        self._release_notes = None
+        self._dialog_callback = None
 
         self._setup_actions()
+
+    def status_update(self, connection_status: State):
+        """
+        This method is set as a callback to monitor the VPN connection after
+        the user clicks on the quit menu option.
+        """
+        if isinstance(connection_status, Disconnected):
+            self._main_window.quit()
 
     @property
     def logout_enabled(self) -> bool:
@@ -113,6 +147,11 @@ class Menu(Gio.Menu):  # pylint: disable=too-many-instance-attributes
     def user_logged_out(self):
         """Signal emitted after a successful logout."""
 
+    def close_settings_window(self):
+        """Closes the settings window if it's open."""
+        if self._settings_window:
+            self._settings_window.close()
+
     def _setup_actions(self):
         # Add actions to Gtk.ApplicationWindow
         self._main_window.add_action(self.bug_report_action)
@@ -123,106 +162,120 @@ class Menu(Gio.Menu):  # pylint: disable=too-many-instance-attributes
         self._main_window.add_action(self.quit_action)
 
         # Connect actions to callbacks
-        self.bug_report_action.connect(
-            "activate", self._on_report_an_issue_clicked
+        safe_signal_connect(
+            self.bug_report_action, "activate", self._on_report_an_issue_clicked
         )
-        self.settings_action.connect(
-            "activate", self._on_settings_clicked
+        safe_signal_connect(
+            self.settings_action, "activate", self._on_settings_clicked
         )
-        self.release_notes_action.connect(
-            "activate", self._on_release_notes_clicked
+        safe_signal_connect(
+            self.release_notes_action, "activate", self._on_release_notes_clicked
         )
-        self.about_action.connect(
-            "activate", self._on_about_clicked
+        safe_signal_connect(
+            self.about_action, "activate", self._on_about_clicked
         )
-        self.logout_action.connect(
-            "activate", self._on_logout_clicked
+        safe_signal_connect(
+            self.logout_action, "activate", self._on_logout_clicked
         )
-        self.quit_action.connect(
-            "activate", self._on_quit_clicked
+        safe_signal_connect(
+            self.quit_action, "activate", self._on_quit_clicked
         )
 
     def _on_report_an_issue_clicked(self, *_):
-        bug_dialog = BugReportDialog(self._controller, self._main_window)
-        bug_dialog.set_transient_for(self._main_window)
-        # run() blocks the main loop, and only exist once the `::response` signal
-        # is emitted.
-        bug_dialog.run()
-        bug_dialog.destroy()
+        self._bug_dialog = BugReportDialog(self._controller, self._main_window)
+        self._bug_dialog.set_transient_for(self._main_window)
+        self._bug_dialog.set_modal(True)
+        safe_signal_connect(self._bug_dialog, "unrealize", self._on_bug_dialog_unrealize)
+        self._bug_dialog.present()
+
+    def _on_bug_dialog_unrealize(self, _):
+        self._bug_dialog = None
 
     def _on_settings_clicked(self,  *_):
-        settings_window = SettingsWindow(
+        self._settings_window = SettingsWindow(
             self._controller,
             self._main_window.application.tray_indicator
         )
-        settings_window.set_transient_for(self._main_window)
-        settings_window.present()
+        self._settings_window.set_transient_for(self._main_window)
+        safe_signal_connect(self._settings_window, "unrealize", self._on_unrealize)
+        self._settings_window.present()
+
+    def _on_unrealize(self, _):
+        self._settings_window = None
 
     def _on_release_notes_clicked(self,  *_):
-        release_notes = ReleaseNotesDialog()
-        release_notes.set_transient_for(self._main_window)
-        release_notes.present()
+        self._release_notes = ReleaseNotesDialog()
+        self._release_notes.set_transient_for(self._main_window)
+        safe_signal_connect(self._release_notes, "unrealize", self._on_release_notes_unrealize)
+        self._release_notes.present()
+
+    def _on_release_notes_unrealize(self, _):
+        self._release_notes = None
 
     def _on_about_clicked(self, *_):
         about_dialog = AboutDialog()
-        # run() blocks the main loop, and only exist once the `::response` signal
-        # is emitted.
-        about_dialog.run()
-        about_dialog.destroy()
+        about_dialog.set_transient_for(self._main_window)
+        about_dialog.set_modal(True)
+        about_dialog.present()
 
     def _on_logout_clicked(self, *_):
         logger.info("Logout button clicked", category="ui", subcategory="logout", event="click")
 
         self.logout_enabled = False
         kill_switch_state = self._controller.get_settings().killswitch
-        confirm_logout = True
 
-        if not self._controller.is_connection_disconnected:
+        def on_logout_confirmed(confirmed: bool):
+            if confirmed:
+                logger.info("Yes", category="ui", subcategory="dialog", event="logout")
+
+                self._overlay_widget.show(DefaultLoadingWidget(self.LOGOUT_LOADING_MESSAGE))
+
+                if kill_switch_state > KillSwitchSettingEnum.OFF:
+                    future = self._controller.disable_killswitch()
+                    future.add_done_callback(
+                        lambda f: GLib.idle_add(self._on_killswitch_disabled_logout, f)
+                    )
+                    return
+                self._request_logout()
+
+        if not self._controller.connection_disconnected:
             dialog = ConfirmationDialog(
                 self.DISCONNECT_ON_LOGOUT_MESSAGE
                 if kill_switch_state < KillSwitchSettingEnum.ON
                 else self.DISCONNECT_ON_LOGOUT_WITH_KILL_SWITCH_ENABLED_MESSAGE,
                 self.DISCONNECT_TITLE
             )
-            confirm_logout = self._display_dialog(dialog)
+            self._display_dialog(dialog, on_logout_confirmed)
         elif kill_switch_state == KillSwitchSettingEnum.PERMANENT:
-            confirm_logout = self._display_dialog(
+            self._display_dialog(
                 ConfirmationDialog(
                     self.LOGOUT_AND_KILL_SWITCH_ENABLED_MESSAGE,
                     self.KILLSWITCH_ENABLED_TITLE
-                )
+                ),
+                on_logout_confirmed
             )
-
-        if confirm_logout:
-            logger.info("Yes", category="ui", subcategory="dialog", event="logout")
-
-            self._overlay_widget.show(DefaultLoadingWidget(self.LOGOUT_LOADING_MESSAGE))
-
-            if kill_switch_state > KillSwitchSettingEnum.OFF:
-                future = self._controller.disable_killswitch()
-                future.add_done_callback(
-                    lambda f: GLib.idle_add(self._on_killswitch_disabled_logout, f)
-                )
-                return
-
-            self._request_logout()
+        else:
+            on_logout_confirmed(True)
 
     def _on_quit_clicked(self, *_):
         kill_switch_state = self._controller.get_settings().killswitch
-        confirm_quit = True
 
-        if not self._controller.is_connection_disconnected:
+        if self._controller.connection_disconnected:
+            self._main_window.quit()
+        else:
+            def on_quit_confirmed(confirmed: bool):
+                if confirmed:
+                    logger.info("Yes", category="ui", subcategory="dialog", event="quit")
+                    self._controller.register_connection_status_subscriber(self)
+                    future = self._controller.disconnect()
+                    future.add_done_callback(lambda f: GLib.idle_add(f.result))
             dialog = ConfirmationDialog(
                 self.DISCONNECT_ON_QUIT_WITH_PERMANENT_KILL_SWITCH_ENABLED_MESSAGE
                 if kill_switch_state == KillSwitchSettingEnum.PERMANENT
                 else self.DISCONNECT_ON_QUIT_MESSAGE,
                 self.DISCONNECT_TITLE
             )
-            confirm_quit = self._display_dialog(dialog)
-
-        if confirm_quit:
-            logger.info("Yes", category="ui", subcategory="dialog", event="quit")
-            self._main_window.quit()
+            self._display_dialog(dialog, on_quit_confirmed)
 
     def _on_killswitch_disabled_logout(self, future: Future):
         future.result()
@@ -245,7 +298,6 @@ class Menu(Gio.Menu):  # pylint: disable=too-many-instance-attributes
                 "Successful logout",
                 category="app", subcategory="logout", event="success"
             )
-            self._controller.clear_settings()
             self.emit("user-logged-out")
         except ProtonAPINotReachable as e:  # pylint: disable=invalid-name
             logger.info(
@@ -259,16 +311,24 @@ class Menu(Gio.Menu):  # pylint: disable=too-many-instance-attributes
         finally:
             self._overlay_widget.hide()
 
-    def _display_dialog(self, dialog: ConfirmationDialog) -> bool:
+    def _display_dialog(self, dialog: ConfirmationDialog, callback):
         dialog.set_transient_for(self._main_window)
-        # run() blocks the main loop, and only exist once the `::response` signal
-        # is emitted.
-        response = Gtk.ResponseType(dialog.run())
+        dialog.set_modal(True)
+
+        self._dialog_callback = callback
+        safe_signal_connect(dialog, "response", self._on_dialog_response)
+        dialog.present()
+
+    def _on_dialog_response(self, dialog, response_id):
         dialog.destroy()
+        self.logout_enabled = response_id in (
+            Gtk.ResponseType.NO, Gtk.ResponseType.DELETE_EVENT
+        )
+        result = response_id == Gtk.ResponseType.YES
 
-        self.logout_enabled = response in (Gtk.ResponseType.NO, Gtk.ResponseType.DELETE_EVENT)
-
-        return response == Gtk.ResponseType.YES
+        if self._dialog_callback is not None:
+            self._dialog_callback(result)
+            self._dialog_callback = None
 
     def bug_report_button_click(self):
         """Clicks the bug report menu entry."""

@@ -24,7 +24,7 @@ from typing import Callable, Optional
 from gi.repository import GLib
 
 from proton.vpn.connection import states
-from proton.vpn.core.connection import VPNConnectorWrapper
+from proton.vpn.core.vpnconnector import VPNConnector
 
 
 class VPNMonitor:
@@ -37,10 +37,11 @@ class VPNMonitor:
         vpn_up_callback: callable to be called whenever the VPN connection is up.
     """
 
-    def __init__(self, vpn_connector: VPNConnectorWrapper):
+    def __init__(self, vpn_connector: VPNConnector):
         self._vpn_connector = vpn_connector
         self.vpn_drop_callback: Optional[Callable] = None
         self.vpn_up_callback: Optional[Callable] = None
+        self.vpn_disconnected_callback: Optional[Callable] = None
 
     def enable(self):
         """Enables VPN connection monitoring."""
@@ -54,7 +55,13 @@ class VPNMonitor:
         """This method is called by the VPN connection state machine whenever
         the connection state changes."""
         if isinstance(connection_status, states.Error) and self.vpn_drop_callback:
-            GLib.idle_add(self.vpn_drop_callback)  # pylint: disable=not-callable
+            event = connection_status.context.event
+            GLib.idle_add(self.vpn_drop_callback, event)  # pylint: disable=not-callable
 
         if isinstance(connection_status, states.Connected) and self.vpn_up_callback:
             GLib.idle_add(self.vpn_up_callback)  # pylint: disable=not-callable
+
+        if isinstance(connection_status, states.Disconnected) \
+                and not connection_status.context.reconnection \
+                and self.vpn_disconnected_callback:
+            GLib.idle_add(self.vpn_disconnected_callback)  # pylint: disable=not-callable

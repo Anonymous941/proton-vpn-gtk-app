@@ -17,143 +17,222 @@ You should have received a copy of the GNU General Public License
 along with ProtonVPN.  If not, see <https://www.gnu.org/licenses/>.
 """
 import pytest
-from unittest.mock import Mock, PropertyMock, patch
+from unittest.mock import Mock, MagicMock, PropertyMock, patch
+from proton.vpn.app.gtk.widgets.headerbar.menu.settings.early_access import EarlyAccessWidget
 from tests.unit.testing_utils import process_gtk_events
 from proton.vpn.app.gtk import gi
 from gi.repository import Gdk  # pylint: disable=C0413 # noqa: E402
-from proton.vpn.app.gtk.widgets.headerbar.menu.settings.general_settings import GeneralSettings
+from proton.vpn.connection import states
+from proton.vpn.app.gtk.widgets.headerbar.menu.settings.general_settings import (
+    GeneralSettings, TrayPinnedServersWidget, EntryWidget, PacketCaptureWidget
+)
 
 
-@pytest.fixture
-def mocked_controller_and_connect_app_at_startup():
-    controller_mock = Mock(name="controller")
+class TestGeneralSettings:
 
-    property_mock = PropertyMock(name="connect_app_at_startup", return_value=None)
-    type(controller_mock.app_configuration).connect_at_app_startup = property_mock
+    def test_build_connect_at_app_startup_saves_value_when_callback_is_called(self):
+        value_to_store = "new value"
+        controller = Mock()
+        controller.server_selection_requires_upgrade = False
+        gs = GeneralSettings(controller)
+        gs.build_connect_at_app_startup()
 
-    return controller_mock, property_mock
+        entry_widget = gs.get_last_child()
+        entry_widget.change_value(value_to_store)
 
+        controller.save_setting_attr.assert_called_with("app_configuration.connect_at_app_startup", value_to_store.upper())
 
-def test_connect_at_app_start_when_setting_is_called_upon_building_ui_elements(mocked_controller_and_connect_app_at_startup):
-    controller_mock, connect_at_app_startup_mock = mocked_controller_and_connect_app_at_startup
+    def test_build_connect_at_app_startup_populates_disabled_with_off(self):
+        controller = Mock()
+        controller.server_selection_requires_upgrade = False
+        gs = GeneralSettings(controller)
+        gs.build_connect_at_app_startup()
 
-    general_settings = GeneralSettings(controller_mock, Mock())
-    general_settings.build_connect_at_app_startup()
+        entry_widget = gs.get_last_child()
+        entry_widget.change_value("off")
 
-    connect_at_app_startup_mock.assert_called_once()
+        controller.save_setting_attr.assert_called_with("app_configuration.connect_at_app_startup", None)
 
+    @patch("proton.vpn.app.gtk.widgets.headerbar.menu.settings.general_settings.EarlyAccessWidget")
+    def test_build_beta_upgrade_is_only_displayed_if_condition_allows_it(self, early_access_widget_class):
+        early_access_widget = Mock()
+        early_access_widget.can_early_access_be_displayed.return_value = False
+        early_access_widget_class.return_value = early_access_widget
 
-def test_connect_at_app_start_when_entry_is_set_to_initial_value(mocked_controller_and_connect_app_at_startup):
-    controller_mock, connect_at_app_startup_mock = mocked_controller_and_connect_app_at_startup
+        gs = GeneralSettings(Mock())
+        gs.build_beta_upgrade()
 
-    with patch("proton.vpn.app.gtk.widgets.headerbar.menu.settings.general_settings.Gtk.Entry.set_text") as set_text_mock:
-        general_settings = GeneralSettings(controller_mock, Mock())
-        general_settings.build_connect_at_app_startup()
-
-        set_text_mock.assert_called_once_with("Off")
-
-
-@pytest.mark.parametrize("raw_new_setting, ui_friendly_new_setting", [(None, "Off"), ("fastest", "Fastest")])
-def test_connect_at_app_start_translates_data_types_when_switching_to_and_from_off_setting(raw_new_setting, ui_friendly_new_setting, mocked_controller_and_connect_app_at_startup):
-    controller_mock, connect_at_app_startup_mock = mocked_controller_and_connect_app_at_startup
-
-    general_settings = GeneralSettings(controller_mock, Mock())
-    general_settings.build_connect_at_app_startup()
-
-    connect_at_app_startup_mock.reset_mock()
-
-    general_settings.connect_at_app_startup_row.interactive_object.set_text(ui_friendly_new_setting)
-    general_settings.connect_at_app_startup_row.interactive_object.emit("focus-out-event", Gdk.Event(Gdk.EventType.FOCUS_CHANGE))
-
-    if raw_new_setting is None:
-        connect_at_app_startup_mock.assert_called_once_with(raw_new_setting)
-    else:
-        connect_at_app_startup_mock.assert_called_once_with(raw_new_setting.upper())
+        last_child = gs.get_last_child()
+        assert last_child is not early_access_widget
 
 
-@pytest.mark.parametrize("new_setting", ["fastest", "pt", "nl#12"])
-def test_connect_at_app_start_when_changing_entry_and_leaving_focus_ensuring_changes_are_saved(new_setting, mocked_controller_and_connect_app_at_startup):
-    controller_mock, connect_at_app_startup_mock = mocked_controller_and_connect_app_at_startup
+    @pytest.mark.parametrize("tray_indicator_mock", [None, Mock()])
+    @patch("proton.vpn.app.gtk.widgets.headerbar.menu.settings.general_settings.GeneralSettings.build_start_app_minimized")
+    @patch("proton.vpn.app.gtk.widgets.headerbar.menu.settings.general_settings.GeneralSettings.build_tray_pinned_servers")
+    def test_display_start_app_minimized_and_tray_pinned_servers_if_tray_indicator_is_found(self, build_tray_pinned_servers_mock, build_start_app_minimized_mock, tray_indicator_mock):
+        controller = MagicMock()
+        controller.server_selection_requires_upgrade = False
+        gs = GeneralSettings(controller, tray_indicator=tray_indicator_mock)
+        gs.build_ui()
 
-    general_settings = GeneralSettings(controller_mock, Mock())
-    general_settings.build_connect_at_app_startup()
-
-    connect_at_app_startup_mock.reset_mock()
-
-    general_settings.connect_at_app_startup_row.interactive_object.set_text(new_setting)
-    general_settings.connect_at_app_startup_row.interactive_object.emit("focus-out-event", Gdk.Event(Gdk.EventType.FOCUS_CHANGE))
-
-    connect_at_app_startup_mock.assert_called_once_with(new_setting.upper())
-
-
-@pytest.fixture
-def mocked_controller_and_tray_pinned_servers():
-    controller_mock = Mock(name="controller")
-
-    property_mock = PropertyMock(name="tray_pinned_servers", return_value=[])
-    type(controller_mock.app_configuration).tray_pinned_servers = property_mock
-
-    return controller_mock, property_mock
+        if tray_indicator_mock:
+            build_tray_pinned_servers_mock.assert_called_once()
+            build_start_app_minimized_mock.assert_called_once()
+        else:
+            build_tray_pinned_servers_mock.assert_not_called()
+            build_start_app_minimized_mock.assert_not_called()
 
 
-def test_tray_pinned_servers_when_setting_is_called_upon_building_ui_elements(mocked_controller_and_tray_pinned_servers):
-    controller_mock, tray_pinned_servers_mock = mocked_controller_and_tray_pinned_servers
+class TestBuildPacketCapture:
 
-    general_settings = GeneralSettings(controller_mock, Mock())
-    general_settings.build_tray_pinned_servers()
+    def _make_controller(self, protocol: str, supports_capture: bool) -> Mock:
+        controller = Mock()
+        controller.get_settings.return_value.protocol = protocol
+        mock_cls = Mock()
+        mock_cls.protocol = protocol
+        mock_cls.supports_packet_capture.return_value = supports_capture
+        controller.get_available_protocols.return_value = [mock_cls]
+        return controller
 
-    tray_pinned_servers_mock.assert_called_once()
+    @pytest.mark.parametrize("supports_capture,expected_visible", [(True, True), (False, False)])
+    def test_widget_visibility_matches_protocol_support(self, supports_capture, expected_visible):
+        controller = self._make_controller("wireguard", supports_capture=supports_capture)
+        gs = GeneralSettings(controller)
+        gs.build_packet_capture()
+        assert gs._packet_capture_widget.get_visible() == expected_visible
+
+    def test_settings_changed_updates_widget_visibility(self):
+        controller = self._make_controller("wireguard", supports_capture=True)
+        gs = GeneralSettings(controller)
+        gs.build_packet_capture()
+        assert gs._packet_capture_widget.get_visible()
+
+        non_supporting = Mock(protocol="openvpn-tcp")
+        non_supporting.supports_packet_capture.return_value = False
+        controller.get_available_protocols.return_value = [non_supporting]
+        gs.on_settings_changed(Mock(protocol="openvpn-tcp"))
+        assert not gs._packet_capture_widget.get_visible()
+
+        supporting = Mock(protocol="wireguard")
+        supporting.supports_packet_capture.return_value = True
+        controller.get_available_protocols.return_value = [supporting]
+        gs.on_settings_changed(Mock(protocol="wireguard"))
+        assert gs._packet_capture_widget.get_visible()
+
+class TestPacketCaptureWidget:
+
+    def _make_widget(self, is_connected: bool = False, file_browser=lambda widget: None) -> tuple:
+        controller = Mock()
+        controller.is_connection_active = is_connected
+        controller.get_setting_attr.return_value = "/tmp/capture.pcap"
+        future = Mock()
+        future.add_done_callback.side_effect = lambda cb: cb(future)
+        controller.executor.submit.return_value = future
+        widget = PacketCaptureWidget(controller, file_browser=file_browser)
+        return widget, controller
+
+    def test_initial_state(self):
+        widget, _ = self._make_widget(is_connected=False)
+        assert not widget._start_stop_button.get_sensitive()
+        assert widget._start_stop_button.get_label() == "Start"
+        assert not widget.capturing
+
+        widget2, _ = self._make_widget(is_connected=True)
+        assert widget2._start_stop_button.get_sensitive()
+
+    def test_start_capture(self):
+        widget, controller = self._make_widget(is_connected=True)
+        widget._start_stop_button.emit("clicked")
+        process_gtk_events()
+        controller.executor.submit.assert_called_once_with(
+            controller.current_connection.start_packet_capture
+        )
+        assert widget._start_stop_button.get_label() == "Stop"
+        assert widget._start_stop_button.has_css_class("destructive-action")
+        assert widget.capturing
+
+    def test_stop_capture(self):
+        widget, controller = self._make_widget(is_connected=True)
+        widget._start_stop_button.emit("clicked")  # start
+        process_gtk_events()
+        controller.executor.submit.reset_mock()
+        widget._start_stop_button.emit("clicked")  # stop
+        process_gtk_events()
+        controller.executor.submit.assert_called_once_with(
+            controller.current_connection.stop_packet_capture
+        )
+        assert widget._start_stop_button.get_label() == "Start"
+        assert not widget._start_stop_button.has_css_class("destructive-action")
+        assert not widget.capturing
+
+    def test_connection_state_changes(self):
+        widget, _ = self._make_widget(is_connected=True)
+        widget._start_stop_button.emit("clicked")  # start capturing
+        process_gtk_events()
+        assert widget.capturing
+
+        widget._on_connection_state_changed(states.Disconnected())
+        assert not widget._start_stop_button.get_sensitive()
+        assert not widget.capturing
+        assert widget._start_stop_button.get_label() == "Start"
+        assert not widget._start_stop_button.has_css_class("destructive-action")
+
+        widget._on_connection_state_changed(states.Connected())
+        assert widget._start_stop_button.get_sensitive()
+
+    def test_realize_unrealize(self):
+        widget, controller = self._make_widget(is_connected=True)
+
+        widget.emit("realize")
+        controller.register_connection_status_subscriber.assert_called_once_with(widget)
+
+        widget.emit("unrealize")
+        controller.executor.submit.assert_not_called()
+        controller.unregister_connection_status_subscriber.assert_called_once_with(widget)
+
+        widget._start_stop_button.emit("clicked")  # start capturing
+        process_gtk_events()
+        assert widget.capturing
+        widget.emit("unrealize")
+        process_gtk_events()
+        controller.executor.submit.assert_called_with(
+            controller.current_connection.stop_packet_capture
+        )
+        assert not widget.capturing
+
+    def test_file_browser_callable_is_used_as_browse_handler(self):
+        mock_click_handler = Mock()
+        mock_file_browser = Mock(return_value=mock_click_handler)
+        widget, _ = self._make_widget(file_browser=mock_file_browser)
+        mock_file_browser.assert_called_once_with(widget)
+        assert widget._on_browse_clicked is mock_click_handler
 
 
-def test_tray_pinned_servers_when_tray_indicator_is_not_available(mocked_controller_and_tray_pinned_servers):
-    controller_mock, tray_pinned_servers_mock = mocked_controller_and_tray_pinned_servers
+class TestTrayPinnedServersWidget:
 
-    general_settings = GeneralSettings(controller_mock)
-    general_settings.build_tray_pinned_servers()
+    def test_build_populates_entry_when_being_initialized(self):
+        mock_controller = Mock(name="controller")
+        mock_controller.get_setting_attr.return_value = ["PT", "CH"]
+        mock_controller.server_selection_requires_upgrade = False
+        psw = TrayPinnedServersWidget(mock_controller, Mock())
 
-    assert general_settings.tray_pinned_servers_row is None
+        assert psw.entry.get_text() == "PT, CH"
 
+    def test_save_setting_when_invoking_callback(self):
+        with patch.object(EntryWidget, '__init__', return_value=None) as mock_parent_init:
+            tray_indicator_mock = Mock()
+            controller_mock = Mock()
+            gtk_entry_mock = Mock()
+            raw_text = "CH, PT"
+            expected_format_when_passed_to_save_setting = ["CH", "PT"]
+            gtk_entry_mock.get_text.return_value = raw_text
 
-def test_tray_pinned_servers_when_entry_is_set_to_initial_value(mocked_controller_and_tray_pinned_servers):
-    controller_mock, tray_pinned_servers_mock = mocked_controller_and_tray_pinned_servers
+            psw = TrayPinnedServersWidget(controller_mock, tray_indicator_mock)
 
-    with patch("proton.vpn.app.gtk.widgets.headerbar.menu.settings.general_settings.Gtk.Entry.set_text") as set_text_mock:
-        general_settings = GeneralSettings(controller_mock, Mock())
-        general_settings.build_tray_pinned_servers()
+            callback = mock_parent_init.call_args[1]["callback"]
+            callback(gtk_entry_mock, None, None)
 
-        set_text_mock.assert_called_once_with('')
-
-
-@pytest.mark.parametrize("new_setting", [("se, pt#12, CH"), (" pt "), ("nl#12"), ('')])
-def test_tray_pinned_servers_when_changing_entry_and_leaving_focus_ensuring_changes_are_saved(new_setting, mocked_controller_and_tray_pinned_servers):
-    controller_mock, tray_pinned_servers_mock = mocked_controller_and_tray_pinned_servers
-
-    general_settings = GeneralSettings(controller_mock, Mock())
-    general_settings.build_tray_pinned_servers()
-
-    tray_pinned_servers_mock.reset_mock()
-
-    general_settings.tray_pinned_servers_row.interactive_object.set_text(new_setting)
-    general_settings.tray_pinned_servers_row.interactive_object.emit("focus-out-event", Gdk.Event(Gdk.EventType.FOCUS_CHANGE))
-
-    if new_setting:
-        _new_setting = new_setting.split(",")
-        _new_setting = [entry.strip().upper() for entry in _new_setting]
-    else:
-        _new_setting = []
-
-    tray_pinned_servers_mock.assert_called_once_with(_new_setting)
-
-
-def test_tray_pinned_servers_when_changing_entry_and_leaving_focus_ensuring_tray_reload_pinned_servers(mocked_controller_and_tray_pinned_servers):
-    controller_mock, tray_pinned_servers_mock = mocked_controller_and_tray_pinned_servers
-
-    tray_indicator_mock = Mock()
-
-    general_settings = GeneralSettings(controller_mock, tray_indicator_mock)
-    general_settings.build_tray_pinned_servers()
-
-    general_settings.tray_pinned_servers_row.interactive_object.set_text("")
-    general_settings.tray_pinned_servers_row.interactive_object.emit("focus-out-event", Gdk.Event(Gdk.EventType.FOCUS_CHANGE))
-
-    tray_indicator_mock.reload_pinned_servers.assert_called_once()
+            controller_mock.save_setting_attr.assert_called_once_with(
+                psw.SETTING_NAME, expected_format_when_passed_to_save_setting
+            )
+            tray_indicator_mock.reload_pinned_servers.assert_called_once()

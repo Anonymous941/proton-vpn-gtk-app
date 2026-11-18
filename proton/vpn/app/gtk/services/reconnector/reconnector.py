@@ -20,22 +20,21 @@ You should have received a copy of the GNU General Public License
 along with ProtonVPN.  If not, see <https://www.gnu.org/licenses/>.
 """
 import random
-from typing import TYPE_CHECKING
+from typing import Optional
 
 from gi.repository import GLib
+from proton.vpn.core.refresher import VPNDataRefresher
 
 from proton.vpn import logging
 from proton.vpn.connection import states, VPNConnection, events
-from proton.vpn.connection.exceptions import VPNConnectionError, AuthenticationError
-from proton.vpn.core.connection import VPNConnectorWrapper
+from proton.vpn.connection.exceptions import VPNConnectionError, \
+    AuthenticationError, HardJailedTwoFAError, NotYetValidCertificateError
+from proton.vpn.core.vpnconnector import VPNConnector
 
 from proton.vpn.app.gtk.services.reconnector.network_monitor import NetworkMonitor
 from proton.vpn.app.gtk.services.reconnector.session_monitor import SessionMonitor
 from proton.vpn.app.gtk.services.reconnector.vpn_monitor import VPNMonitor
 from proton.vpn.app.gtk.utils.executor import AsyncExecutor
-
-if TYPE_CHECKING:
-    from proton.vpn.app.gtk.services import VPNDataRefresher
 
 logger = logging.getLogger(__name__)
 
@@ -55,8 +54,8 @@ class VPNReconnector:  # pylint: disable=too-many-instance-attributes
     # pylint: disable=too-many-arguments
     def __init__(
             self,
-            vpn_connector: VPNConnectorWrapper,
-            vpn_data_refresher: "VPNDataRefresher",
+            vpn_connector: VPNConnector,
+            vpn_data_refresher: VPNDataRefresher,
             vpn_monitor: VPNMonitor,
             network_monitor: NetworkMonitor,
             session_monitor: SessionMonitor,
@@ -68,6 +67,7 @@ class VPNReconnector:  # pylint: disable=too-many-instance-attributes
         self._vpn_monitor = vpn_monitor
         self._vpn_monitor.vpn_drop_callback = self._on_vpn_drop
         self._vpn_monitor.vpn_up_callback = self._on_vpn_up
+        self._vpn_monitor.vpn_disconnected_callback = self._on_vpn_disconnected
 
         self._network_monitor = network_monitor
         self._network_monitor.network_up_callback = self._on_network_up
@@ -77,7 +77,8 @@ class VPNReconnector:  # pylint: disable=too-many-instance-attributes
 
         self._executor = async_executor
 
-        self._retry_src_id = None
+        self._new_certificate_src_id: Optional[int] = None
+        self._retry_src_id: Optional[int] = None
         self.retry_counter = 0
 
     @property
@@ -85,9 +86,14 @@ class VPNReconnector:  # pylint: disable=too-many-instance-attributes
         """Returns True if there is a pending scheduled reconnection and False otherwise."""
         return self._retry_src_id is not None
 
+    @property
+    def is_recovering_connection(self) -> bool:
+        """Returns True while an automatic reconnection attempt is in progress or pending."""
+        return self.retry_counter > 0
+
     def enable(self):
         """Enables the auto reconnect feature."""
-        if not self._vpn_data_refresher.is_vpn_data_ready:
+        if not self._vpn_data_refresher.is_vpn_data_ready:  # noqa: E501 # pylint: disable=line-too-long # nosemgrep: python.lang.maintainability.is-function-without-parentheses.is-function-without-parentheses
             raise RuntimeError("VPN data refresher is not ready.")
         self._reset_retry_counter()
         self._vpn_monitor.enable()
@@ -149,6 +155,16 @@ class VPNReconnector:  # pylint: disable=too-many-instance-attributes
 
         raise VPNConnectionError(f"Reconnection not possible due to unexpected event: {event}")
 
+    def _on_two_fa_required(self):
+        raise HardJailedTwoFAError(
+            "Two factor authentication required to reconnect."
+        )
+
+    def _on_not_yet_valid_certificate(self):
+        raise NotYetValidCertificateError(
+            "The certificate is not valid yet."
+        )
+
     def _on_session_unlocked(self):
         """
         Callback called by the session monitor once the user session has been
@@ -161,7 +177,7 @@ class VPNReconnector:  # pylint: disable=too-many-instance-attributes
             logger.debug("VPN reconnection not necessary: connection didn't drop.")
             return
 
-        if not self.is_connection_error_fatal:
+        if not self.is_connection_error_fatal:  # noqa: E501 # pylint: disable=line-too-long # nosemgrep: python.lang.maintainability.is-function-without-parentheses.is-function-without-parentheses
             logger.debug("VPN reconnection not possible: fatal connection error.")
             return
 
@@ -180,17 +196,31 @@ class VPNReconnector:  # pylint: disable=too-many-instance-attributes
             logger.debug("VPN reconnection not necessary: connection didn't drop.")
             return
 
-        if not self.is_connection_error_fatal:
+        if not self.is_connection_error_fatal:  # noqa: E501 # pylint: disable=line-too-long # nosemgrep: python.lang.maintainability.is-function-without-parentheses.is-function-without-parentheses
             logger.debug("VPN reconnection not possible: fatal connection error.")
             return
 
         self.schedule_reconnection()
 
-    def _on_vpn_drop(self):
+    def _on_vpn_drop(self, event: events.Event):
         """Callback called by the VPN monitor when a VPN connection drop was detected."""
         logger.info("VPN connection drop was detected.")
+        if isinstance(event, events.ExpiredCertificate):
+            self._handle_certificate_expired()
+            return
 
-        if not self.is_connection_error_fatal:
+        if isinstance(event, events.MaximumSessionsReached):
+            return
+
+        if isinstance(event, events.TwoFARequired):
+            GLib.idle_add(self._on_two_fa_required)
+            return
+
+        if isinstance(event, events.NotYetValidCertificate):
+            GLib.idle_add(self._on_not_yet_valid_certificate)
+            return
+
+        if not self.is_connection_error_fatal:  # noqa: E501 # pylint: disable=line-too-long # nosemgrep: python.lang.maintainability.is-function-without-parentheses.is-function-without-parentheses
             logger.info("VPN reconnection not possible: fatal connection error.")
             # Raise exception on the next event loop iteration so that the app reacts to it.
             GLib.idle_add(self._on_reconnection_error)
@@ -198,22 +228,30 @@ class VPNReconnector:  # pylint: disable=too-many-instance-attributes
 
         self.schedule_reconnection()
 
+    def _handle_certificate_expired(self):
+        self._executor.submit(self._vpn_data_refresher.force_refresh_certificate)
+
     def _on_vpn_up(self):
         """Callback called by the VPN monitor when the VPN connection is up."""
         logger.debug("VPN connection is up.")
+        self._reset_retry_counter()
+
+    def _on_vpn_disconnected(self):
+        """Callback called by the VPN monitor when the VPN connection is disconnected."""
+        logger.info("VPN connection is disconnected.")
         self._reset_retry_counter()
 
     def _reconnect(self):
         logger.info(f"Reconnecting (attempt #{self.retry_counter})...")
         connection = self._vpn_connector.current_connection
 
-        if not self._network_monitor.is_network_up:
+        if not self._network_monitor.is_network_up:  # noqa: E501 # pylint: disable=line-too-long # nosemgrep: python.lang.maintainability.is-function-without-parentheses.is-function-without-parentheses
             logger.info("VPN reconnection not possible: network is down.")
             self._increase_retry_counter()
             self.schedule_reconnection()
             return False
 
-        if not self._session_monitor.is_session_unlocked:
+        if not self._session_monitor.is_session_unlocked:  # noqa: E501 # pylint: disable=line-too-long # nosemgrep: python.lang.maintainability.is-function-without-parentheses.is-function-without-parentheses
             logger.info("VPN reconnection not possible: session is locked.")
             self._increase_retry_counter()
             self.schedule_reconnection()
@@ -253,7 +291,8 @@ class VPNReconnector:  # pylint: disable=too-many-instance-attributes
         The amount of time increases exponentially based on the number of
         previous attempts.
         """
-        return 2 ** self.retry_counter * random.uniform(0.9, 1.1) * 1000  # nosec B311
+        return (2 ** self.retry_counter *
+                random.uniform(0.9, 1.1) * 1000)  # nosec B311 # noqa: E501 # pylint: disable=line-too-long # nosemgrep: gitlab.bandit.B311
 
     def _reset_retry_counter(self):
         if self._retry_src_id:

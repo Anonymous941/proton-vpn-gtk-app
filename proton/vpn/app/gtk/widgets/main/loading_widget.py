@@ -21,22 +21,23 @@ You should have received a copy of the GNU General Public License
 along with ProtonVPN.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+from typing import Optional, Union
 from proton.vpn.app.gtk import Gtk
+from proton.vpn.app.gtk.utils.safe_signal_connect import safe_signal_connect
 
 
 class Spinner(Gtk.Spinner):
     """Spinner with some default configurations.
     Upon being shown it automatically starts spinning.
     """
-    def __init__(self):
+    def __init__(self, size: int = 50):
         super().__init__()
-        self.set_property("height-request", 50)
+        self.set_property("height-request", size)
+        safe_signal_connect(self, "realize", self._on_realize)
 
-        self.connect("show", self._on_show_spinner)
-
-    def _on_show_spinner(self, *_):
+    def _on_realize(self, _: Gtk.Widget):
+        """Starts spinning when the widget is realized."""
         self.start()
-        super().show()
 
 
 class BaseLoadingContainerWidget(Gtk.Box):
@@ -45,6 +46,8 @@ class BaseLoadingContainerWidget(Gtk.Box):
     def __init__(self, orientation: Gtk.Orientation = Gtk.Orientation.VERTICAL):
         super().__init__(orientation=orientation)
         self.set_spacing(25)
+        self.set_valign(Gtk.Align.CENTER)
+        self.set_vexpand(True)
 
 
 class DefaultLoadingWidget(BaseLoadingContainerWidget):
@@ -53,10 +56,17 @@ class DefaultLoadingWidget(BaseLoadingContainerWidget):
     def __init__(self, label: str):
         super().__init__()
         self._label = Gtk.Label.new(label)
+        self._label.set_wrap(True)
+        self._label.set_max_width_chars(1)
+        self._label.set_hexpand(True)
+        self._label.set_justify(Gtk.Justification.CENTER)
+        self._label.add_css_class("default-loading-widget-label")
+        self._label.set_valign(Gtk.Align.CENTER)
+        self._label.set_vexpand(True)
         self._spinner = Spinner()
 
-        self.pack_start(self._label, expand=False, fill=False, padding=0)
-        self.pack_start(self._spinner, expand=False, fill=False, padding=0)
+        self.append(self._label)
+        self.append(self._spinner)
 
     def get_label(self) -> str:
         """Returns the label of the object"""
@@ -70,27 +80,33 @@ class LoadingConnectionWidget(BaseLoadingContainerWidget):
     def __init__(
         self, label: str,
         cancel_button: Gtk.Button,
-        display_loading_status: Gtk.Widget = None
+        display_loading_status: Optional[Gtk.Widget] = None
     ):
         super().__init__()
 
         self._label = Gtk.Label.new(label)
         self._cancel_button = cancel_button
-        self._cancel_button.get_style_context().add_class("danger")
+        self._cancel_button.add_css_class("danger")
         self._cancel_button.set_halign(Gtk.Align.CENTER)
 
+        self._display_loading_status: Union[Spinner, Gtk.Widget]
         if not display_loading_status:
             self._display_loading_status = Spinner()
+            self._display_loading_status.start()
         else:
             self._display_loading_status = display_loading_status
 
-        self.pack_start(self._label, expand=False, fill=False, padding=0)
-        self.pack_start(self._display_loading_status, expand=False, fill=False, padding=0)
-        self.pack_start(self._cancel_button, expand=False, fill=False, padding=0)
+        self.append(self._label)
+        self.append(self._display_loading_status)
+        self.append(self._cancel_button)
 
     def get_label(self) -> str:
-        """Returns the label of the object"""
+        """Returns the label shown while the connection is being established."""
         return self._label.get_label()
+
+    def set_label(self, label: str):
+        """Sets the label shown while the connection is being established."""
+        return self._label.set_label(label)
 
 
 class OverlayWidget(Gtk.Box):
@@ -99,30 +115,34 @@ class OverlayWidget(Gtk.Box):
 
     def __init__(self):
         super().__init__(orientation=Gtk.Orientation.VERTICAL)
-        self._centered_container = Gtk.Box.new(orientation=Gtk.Orientation.VERTICAL, spacing=20)
-        self._centered_container.show()
+        self._centered_container = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=20)
 
         self._centered_container.set_valign(Gtk.Align.CENTER)
 
-        self.pack_start(self._centered_container, expand=True, fill=True, padding=0)
+        self.append(self._centered_container)
         # Adding the background class (which is a GTK class) gives the default
         # background color to this widget. This is needed as otherwise the widget
         # background is transparent, but the intended use of this widget is to
         # hide other widgets while an action is ongoing.
-        self.get_style_context().add_class("background")
-        self.set_no_show_all(True)
+        self.add_css_class("background")
+        self.set_visible(False)
 
     def show(self, widget: Gtk.Widget):  # pylint: disable=arguments-differ
         """Shows the loading screen to the user."""
-        self._centered_container.pack_start(widget, expand=False, fill=False, padding=0)
-        widget.show_all()
-        super().show()
+        self._remove_children_if_any()
+        self._centered_container.append(widget)
+        super().set_visible(True)
+
+    def show_message(self, message: str):
+        """Shows a message using DefaultLoadingWidget"""
+        self.show(DefaultLoadingWidget(message))
 
     def hide(self):  # pylint: disable=arguments-differ
         """Hides the loading widget from the user."""
-        # https://lazka.github.io/pgi-docs/Gtk-3.0/classes/Container.html#Gtk.Container.remove
-        children = self._centered_container.get_children()
-        if children:
-            children[0].destroy()
+        self._remove_children_if_any()
+        super().set_visible(False)
 
-        super().hide()
+    def _remove_children_if_any(self):
+        first_child = self._centered_container.get_first_child()
+        if first_child:
+            self._centered_container.remove(first_child)

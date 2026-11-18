@@ -1,4 +1,21 @@
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+  GIT_SUBMODULE_DEPTH: 1
+  L10N_ENABLED: "true"
+  DEV_VERSION_ENABLED: "true"
+  PUBLIC_RELEASE_NOTES: "true"
+  SRC_DIR: proton
+  PO_DIR: proton/vpn/app/gtk/locale
+  POT: po/proton-vpn-gtk-app.pot
+
 include:
  - project: 'ProtonVPN/Linux/integration/ci-libraries'
    ref: develop
    file: 'develop-pipeline.yml'
+ - component: gitlab.protontech.ch/translations/ci/standard@~latest
+   inputs:
+      stage: l10n
+      projects:
+        - linux-vpn
+      needs_sources:
+        - l10n

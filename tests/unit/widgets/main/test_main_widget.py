@@ -17,14 +17,15 @@ You should have received a copy of the GNU General Public License
 along with ProtonVPN.  If not, see <https://www.gnu.org/licenses/>.
 """
 from unittest.mock import Mock
-import pytest
+from proton.session.exceptions import ProtonAPIMissingScopeError
+
+import gi
+from gi.repository import Gtk
 
 from proton.vpn.app.gtk.widgets.main.main_widget import MainWidget
 
 from proton.vpn.app.gtk.widgets.main.notification_bar import NotificationBar
-from proton.vpn.app.gtk.widgets.main.notifications import Notifications
 from proton.vpn.app.gtk.widgets.main.loading_widget import OverlayWidget
-from tests.unit.testing_utils import process_gtk_events
 
 
 def test_main_widget_initially_shows_login_widget_if_the_user_did_not_log_in_yet():
@@ -85,6 +86,7 @@ def test_main_widget_switches_from_vpn_to_login_widget_after_logout():
         main_window=main_window_mock,
         overlay_widget=OverlayWidget()
     )
+    main_widget.vpn_widget = main_widget._create_vpn_widget()
     main_widget.active_widget = main_widget.vpn_widget
 
     logout_callback = main_window_mock.header_bar.menu.connect.call_args.args[1]
@@ -94,7 +96,7 @@ def test_main_widget_switches_from_vpn_to_login_widget_after_logout():
     assert main_window_mock.header_bar.menu.logout_enabled is False
 
 
-def test_main_widget_switches_to_login_widget_when_session_expired():
+def test_main_widget_switches_to_login_widget_and_shows_error_dialog_on_session_expired_error():
     main_window_mock = Mock()
     notifications_mock = Mock()
     notifications_mock.notification_bar = NotificationBar()
@@ -107,8 +109,9 @@ def test_main_widget_switches_to_login_widget_when_session_expired():
         notifications=notifications_mock,
         overlay_widget=OverlayWidget()
     )
+    main_widget.vpn_widget = main_widget._create_vpn_widget()
     main_widget.active_widget = main_widget.vpn_widget
-    main_widget.session_expired()
+    main_widget.on_session_expired()
 
     assert main_widget.active_widget is main_widget.login_widget
     notifications_mock.show_error_dialog.assert_called_once_with(
@@ -159,3 +162,22 @@ def test_run_start_actions_when_user_is_logged_in_and_start_the_app_with_vpn_wid
     main_widget.vpn_widget.emit("vpn-widget-ready")
 
     controller_mock.run_startup_actions.assert_called_once()
+
+def test_main_widget_shows_error_modal_when_startup_compatibility_check_returns_false():
+    controller_mock = Mock()
+    controller_mock.passes_startup_checks.return_value = False
+    notifications_mock = Mock()
+    notifications_mock.notification_bar = NotificationBar()
+    main_widget = MainWidget(
+        controller=controller_mock,
+        main_window=Mock(),
+        overlay_widget=OverlayWidget(),
+        notifications=notifications_mock
+    )
+    main_widget.initialize_visible_widget()
+
+    notifications_mock.show_error_dialog.assert_called_once_with(
+        MainWidget.INCOMPATIBILITY_ERROR_MESSAGE,
+        None
+    )
+

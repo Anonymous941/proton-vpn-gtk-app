@@ -17,75 +17,97 @@ You should have received a copy of the GNU General Public License
 along with ProtonVPN.  If not, see <https://www.gnu.org/licenses/>.
 """
 from __future__ import annotations
+import random
+import subprocess  # nosec B404 # nosemgrep: gitlab.bandit.B404
 from concurrent.futures import Future
 from importlib import metadata
+from threading import Event
 from types import TracebackType
+from typing import Optional, Type, Callable, Union, Tuple, List
 
-from typing import Optional, Type
+from gi.repository import GLib
+from proton.vpn.session import ServerList, FREE_RESCOPE_FLAG
 
 from proton.vpn import logging
 
 from proton.vpn.connection import VPNConnection, states
 from proton.vpn.core.api import ProtonVPNAPI, VPNAccount
 from proton.vpn.core.session_holder import ClientTypeMetadata
-from proton.vpn.core.connection import VPNConnectorWrapper
+from proton.vpn.core.vpnconnector import VPNConnector
 from proton.vpn.core.cache_handler import CacheHandler
-from proton.vpn.core.session.servers import LogicalServer
+from proton.vpn.core.settings import Settings
+from proton.vpn.session.exceptions import ServerNotFoundError
+from proton.vpn.session.servers import LogicalServer, ServerFeatureEnum, TierEnum
+from proton.vpn.session.session import \
+    ClientConfig, \
+    FeatureFlags, \
+    Notifications as PullNotifications
+from proton.vpn.session.u2f_interaction import UserInteraction
 
-from proton.vpn.app.gtk.services import VPNDataRefresher, VPNReconnector
+from proton.vpn.connection.enum import KillSwitchSetting as\
+    KillSwitchSettingEnum
+
+from proton.vpn.app.gtk.services import VPNReconnector
 from proton.vpn.app.gtk.services.reconnector.network_monitor import NetworkMonitor
 from proton.vpn.app.gtk.services.reconnector.session_monitor import SessionMonitor
 from proton.vpn.app.gtk.services.reconnector.vpn_monitor import VPNMonitor
-from proton.vpn.core.settings import Settings
-from proton.vpn.app.gtk.utils import semver
+from proton.vpn.app.gtk.settings_watchers import SettingsWatchers
+from proton.vpn.app.gtk.translator import active_language, LOCALIZATION_ENABLED
+from proton.vpn.app.gtk.utils import glib
+from proton.vpn.app.gtk.utils.exception_handler import ExceptionHandler
 from proton.vpn.app.gtk.utils.executor import AsyncExecutor
 from proton.vpn.app.gtk.widgets.headerbar.menu.bug_report_dialog import BugReportForm
+from proton.vpn.session.dataclasses import NPSSurveyResponse
 from proton.vpn.app.gtk.config import AppConfig, APP_CONFIG
-from proton.vpn.connection.enum import KillSwitchSetting as KillSwitchSettingEnum
+from proton.vpn.app.gtk.conflicts import Conflicts, Conflict
+
+from proton.session.api import Fido2Assertion
 
 logger = logging.getLogger(__name__)
 
-WIREGUARD_PROTOCOL = "wireguard"
+DOT = "."  # pylint: disable=invalid-name
 
 
 class Controller:  # pylint: disable=too-many-public-methods, too-many-instance-attributes
     """The C in the MVC pattern."""
-    DEFAULT_BACKEND = "linuxnetworkmanager"
 
     @staticmethod
-    def get(executor: AsyncExecutor):
+    def get(executor: AsyncExecutor, exception_handler: "ExceptionHandler") -> Controller:
         """Preferred method to get an instance of Controller."""
-        controller = Controller(executor)
+        controller = Controller(executor, exception_handler)
         executor.submit(controller.initialize_vpn_connector).result()
         return controller
 
     def __init__(
         self,
         executor: AsyncExecutor,
-        api: ProtonVPNAPI = None,
-        vpn_data_refresher: VPNDataRefresher = None,
-        vpn_connector: VPNConnectorWrapper = None,
-        vpn_reconnector: VPNReconnector = None,
-        app_config: AppConfig = None,
-        settings: Settings = None,
+        exception_handler: ExceptionHandler,
+        api: Optional[ProtonVPNAPI] = None,
+        vpn_connector: Optional[VPNConnector] = None,
+        vpn_reconnector: Optional[VPNReconnector] = None,
+        app_config: Optional[AppConfig] = None,
         cache_handler: CacheHandler = None
     ):  # pylint: disable=too-many-arguments
         self.executor = executor
 
-        client_type_metadata = ClientTypeMetadata(
-            type="gui", version=semver.from_pep440(self.app_version)
-        )
+        self.exception_handler = exception_handler
+        self.exception_handler.controller = self
 
-        self._api = api or ProtonVPNAPI(client_type_metadata)
-        self.vpn_data_refresher = vpn_data_refresher or VPNDataRefresher(
-            self.executor, self._api
+        client_type_metadata = ClientTypeMetadata(type="gui")
+
+        self._api = api or ProtonVPNAPI(
+            client_type_metadata,
+            locale=active_language() if LOCALIZATION_ENABLED else None
         )
         self._connector = vpn_connector
         self.reconnector = vpn_reconnector
 
         self._app_config = app_config
-        self._settings = settings
         self._cache_handler = cache_handler or CacheHandler(APP_CONFIG)
+        self._settings_watchers = SettingsWatchers()
+        # Country of the last connection, if it was made at the country
+        # level. None otherwise.
+        self._last_requested_country: Optional[str] = None
 
     async def initialize_vpn_connector(self):
         """
@@ -94,8 +116,8 @@ class Controller:  # pylint: disable=too-many-public-methods, too-many-instance-
         self._connector = await self._api.get_vpn_connector()
 
         self.reconnector = VPNReconnector(
+            vpn_data_refresher=self._api.refresher,
             vpn_connector=self._connector,
-            vpn_data_refresher=self.vpn_data_refresher,
             vpn_monitor=VPNMonitor(vpn_connector=self._connector),
             network_monitor=NetworkMonitor(pool=self.executor),
             session_monitor=SessionMonitor(),
@@ -119,12 +141,42 @@ class Controller:  # pylint: disable=too-many-public-methods, too-many-instance-
         """
         return self.executor.submit(self._api.submit_2fa_code, code)
 
+    def generate_2fa_fido2_assertion(
+            self,
+            user_interaction: UserInteraction,
+            cancel_assertion: Event) -> Future:
+        """
+        Scans for security keys and generates a FIDO2 assertion for U2F authentication.
+        :param user_interaction: object handling any required user interaction
+            while generating the assertion.
+        :param cancel_assertion: optional event that can be set to cancel the
+        fido 2 assertion process.
+        :return: A Future object wrapping the Fido2Assertion.
+        """
+        return self.executor.submit(
+            self._api.generate_2fa_fido2_assertion,
+            user_interaction,
+            cancel_assertion)
+
+    def submit_2fa_fido2(self, fido2_assertion: Fido2Assertion) -> Future:
+        """
+        Submits a 2-factor authentication using U2F for verification.
+        :return: A Future object wrapping the result of the 2FA verification.
+        """
+        return self.executor.submit(self._api.submit_2fa_fido2, fido2_assertion)
+
     def logout(self) -> Future:
         """
         Logs the user out.
         :return: A future to be able to track the logout completion.
         """
         return self.executor.submit(self._api.logout)
+
+    def passes_startup_checks(self) -> bool:
+        """
+        Returns True if there are any compatible VPN backends and False otherwise.
+        """
+        return self._api.validate_connection_availability()
 
     @property
     def user_logged_in(self) -> bool:
@@ -139,6 +191,11 @@ class Controller:  # pylint: disable=too-many-public-methods, too-many-instance-
         """Returns user tier."""
         return self._api.user_tier
 
+    @property
+    def settings_watchers(self):
+        """Returns a registry for settings changed callbacks."""
+        return self._settings_watchers
+
     def run_startup_actions(self, _):
         """Runs any startup actions that are necessary once the app has loaded."""
         logger.info(
@@ -147,7 +204,7 @@ class Controller:  # pylint: disable=too-many-public-methods, too-many-instance-
         )
         if (
             self.user_logged_in
-            and self.app_configuration.connect_at_app_startup
+            and self.connect_at_app_startup
         ):
             self.autoconnect()
 
@@ -155,7 +212,7 @@ class Controller:  # pylint: disable=too-many-public-methods, too-many-instance-
         """Connects to a server from app configuration.
             This method is intended to be called at app startup.
         """
-        connect_at_app_startup = self.app_configuration.connect_at_app_startup
+        connect_at_app_startup = self.connect_at_app_startup
 
         # Temporary hack for parsing. Should be improved
         if connect_at_app_startup == "FASTEST":
@@ -180,6 +237,7 @@ class Controller:  # pylint: disable=too-many-public-methods, too-many-instance-
         :return: A Future object that resolves once the connection reaches the
         "connected" state.
         """
+        self._last_requested_country = country_code
         server = self._api.server_list.get_fastest_in_country(country_code)
         return self._connect_to_vpn(server)
 
@@ -189,10 +247,12 @@ class Controller:  # pylint: disable=too-many-public-methods, too-many-instance-
         :return: A Future object that resolves once the connection reaches the
         "connected" state.
         """
+        self._last_requested_country = None
+        # FIXME: getting the fastest server takes too long  # pylint: disable=fixme
         server = self._api.server_list.get_fastest()
         return self._connect_to_vpn(server)
 
-    def connect_to_server(self, server_name: str = None) -> Future:
+    def connect_to_server(self, server_name: Optional[str] = None) -> Future:
         """
         Establishes a VPN connection.
         :param server_name: The name of the server to connect to.
@@ -202,9 +262,56 @@ class Controller:  # pylint: disable=too-many-public-methods, too-many-instance-
         server = self._api.server_list.get_by_name(server_name)
         return self._connect_to_vpn(server)
 
+    def change_server(self) -> Future:
+        """
+        Reconnects to another randomly picked server.
+
+        If the last requested connection was at country level, the new
+        server is picked from that same country. If not, any server may be picked.
+
+        :return: A Future object that resolves once the connection reaches the
+        "connected" state.
+        """
+        return self.connect_to_random_server(self._last_requested_country)
+
+    def connect_to_random_server(self, from_country: Optional[str]) -> Future:
+        """
+        Establishes a VPN connection to a randomly picked server.
+
+        The server currently connected to is avoided, unless it is the only
+        one available.
+
+        :param from_country: restricts the pick to this country. When None,
+            any available server may be picked, including in another country.
+        :return: A Future object that resolves once the connection reaches the
+        "connected" state.
+        """
+        server_list = self._api.server_list
+        candidates = server_list.logicals
+        if from_country:
+            candidates = ServerList.get_servers_in_country_code(candidates, from_country)
+        candidates = ServerList.get_available_servers(candidates, server_list.user_tier)
+        candidates = list(ServerList.get_servers_with_features(
+            candidates,
+            exclude_features=ServerFeatureEnum.SECURE_CORE | ServerFeatureEnum.TOR
+        ))
+
+        if not candidates:
+            raise ServerNotFoundError("No server available in the current tier")
+
+        current_server_id = self.current_server_id
+        other_candidates = [
+            server for server in candidates
+            if server.id != current_server_id
+        ] or candidates
+
+        # nosemgrep: gitlab.bandit.B311
+        server = random.choice(other_candidates)  # nosec B311
+        return self._connect_to_vpn(server)
+
     def _connect_to_vpn(self, server: LogicalServer) -> Future:
         vpn_server = self._connector.get_vpn_server(
-            server, self.vpn_data_refresher.client_config
+            server, self._api.refresher.client_config
         )
 
         return self.executor.submit(
@@ -255,12 +362,36 @@ class Controller:  # pylint: disable=too-many-public-methods, too-many-instance-
         A connection is considered active in the connecting, connected
         and disconnecting states.
         """
-        return self._connector.is_connection_active
+        return self._connector.is_connection_active  # noqa: E501 # pylint: disable=line-too-long # nosemgrep: python.lang.maintainability.is-function-without-parentheses.is-function-without-parentheses
 
     @property
-    def is_connection_disconnected(self) -> bool:
+    def connection_disconnected(self) -> bool:
         """Returns whether the current connection is in disconnected state or not."""
         return isinstance(self._connector.current_state, states.Disconnected)
+
+    @property
+    def server_list(self) -> ServerList:
+        """Returns the current server list."""
+        return self._api.refresher.server_list
+
+    @property
+    def feature_flags(self) -> FeatureFlags:
+        """Returns object which specifies which features are to be enabled or not."""
+        return self._api.refresher.feature_flags
+
+    @property
+    def client_config(self) -> ClientConfig:
+        """Returns the current client configuration."""
+        return self._api.refresher.client_config
+
+    @property
+    def notifications(self) -> PullNotifications:
+        """Returns cached VPN pull notifications."""
+        return self._api.refresher.notifications
+
+    def set_notification_seen(self, notification_id: str):
+        """Marks a notification as seen and persists the change to disk."""
+        self._api.set_notification_seen(notification_id)
 
     def submit_bug_report(self, bug_report: BugReportForm) -> Future:
         """Submits an issue report.
@@ -269,6 +400,34 @@ class Controller:  # pylint: disable=too-many-public-methods, too-many-instance-
             self._api.submit_bug_report,
             bug_report
         )
+
+    def submit_nps_survey_response(self, nps_response: NPSSurveyResponse) -> Future:
+        """Submits an NPS survey response.
+        :return: A Future object wrapping the result of the API."""
+        return self.executor.submit(
+            self._api.submit_nps_response,
+            nps_response
+        )
+
+    def refresh_vpn_info(self, on_done=None, on_error=None) -> Future:
+        """Re-fetches VPN info from the REST API and updates the stored account data."""
+        def on_finished(finished: Future):
+            try:
+                vpninfo = finished.result()
+            except Exception as exception:  # pylint: disable=broad-except
+                GLib.idle_add(
+                    self.exception_handler.handle_exception,
+                    type(exception), exception, exception.__traceback__
+                )
+                if on_error:
+                    GLib.idle_add(on_error, exception)
+                return
+            if on_done:
+                GLib.idle_add(on_done, vpninfo)
+
+        future = self.executor.submit(self._api.refresh_vpn_info)
+        future.add_done_callback(on_finished)
+        return future
 
     def register_connection_status_subscriber(self, subscriber):
         """
@@ -285,17 +444,17 @@ class Controller:  # pylint: disable=too-many-public-methods, too-many-instance-
         self._connector.unregister(subscriber)
 
     @property
-    def vpn_connector(self) -> VPNConnectorWrapper:
+    def vpn_connector(self) -> VPNConnector:
         """Returns the VPN connector"""
         return self._connector
 
     def disable_killswitch(self) -> Future:
         """Disables the kill switch and stores the change to file."""
-        self.get_settings().killswitch = KillSwitchSettingEnum.OFF
-        return self.save_settings()
+        settings = self.get_settings()
+        settings.killswitch = KillSwitchSettingEnum.OFF
+        return self.save_settings(settings)
 
-    @property
-    def app_configuration(self) -> AppConfig:
+    def get_app_configuration(self) -> AppConfig:
         """Return object with app specific configurations."""
         if self._app_config is not None:
             return self._app_config
@@ -304,18 +463,45 @@ class Controller:  # pylint: disable=too-many-public-methods, too-many-instance-
 
         if app_config is None:
             self._app_config = AppConfig.default()
-            self._cache_handler.save(
-                self._app_config.to_dict()
-            )
         else:
             self._app_config = AppConfig.from_dict(app_config)
 
         return self._app_config
 
-    @app_configuration.setter
-    def app_configuration(self, new_value: AppConfig):
+    def save_app_configuration(self, new_value: AppConfig):
+        """Save object with app specific configurations to disk."""
         self._app_config = new_value
         self._cache_handler.save(self._app_config.to_dict())
+
+    @property
+    def server_selection_requires_upgrade(self) -> bool:
+        """Whether the current user must upgrade to pick or pin a specific
+        server."""
+        # Retiring FreeRescope means changing this line, and only this line,
+        # to `return self.user_tier == TierEnum.FREE`.
+        return bool(self.feature_flags.get(FREE_RESCOPE_FLAG)) and self.user_tier == TierEnum.FREE
+
+    @property
+    def connect_at_app_startup(self) -> Optional[str]:
+        """The configured autoconnect target.
+
+        Autoconnect is unavailable when the user's plan requires an
+        upgrade.
+        """
+        if self.server_selection_requires_upgrade:
+            return None
+        return self.get_app_configuration().connect_at_app_startup
+
+    @property
+    def tray_pinned_servers(self) -> Optional[List[str]]:
+        """The user's pinned tray connections.
+
+        Pinning is unavailable when the user's plan requires an
+        upgrade.
+        """
+        if self.server_selection_requires_upgrade:
+            return None
+        return self.get_app_configuration().tray_pinned_servers
 
     @property
     def app_version(self) -> str:
@@ -324,57 +510,248 @@ class Controller:  # pylint: disable=too-many-public-methods, too-many-instance-
 
     def get_settings(self) -> Settings:
         """Returns general settings."""
-        if not self._settings:
-            self._settings = self.executor.submit(
-                self._api.load_settings
-            ).result()
 
-        return self._settings
+        return self.executor.submit(
+            self._api.load_settings
+        ).result()
 
-    def save_settings(self, update_certificate: bool = False) -> Future:
+    def save_settings(self, settings: Settings, bubble_up_errors=True) -> Future:
         """
         Saves current settings to disk and updates the wireguard certificate
         if necessary.
         """
+        async def save(settings):
+            await self._api.save_settings(settings)
 
-        # If update certificate is invoked then we save and update the
-        # certificate in the same call
-        if update_certificate:
-            async def save_and_update(settings):
-                await self._api.save_settings(settings)
-                if settings.protocol == WIREGUARD_PROTOCOL:
-                    await self._api.fetch_certificate()
+        future = self.executor.submit(
+            save,
+            settings
+        )
 
-            return self.executor.submit(
-                save_and_update,
-                self._settings
+        future.add_done_callback(
+            lambda f: GLib.idle_add(self._settings_watchers.notify, settings)
+        )
+
+        if bubble_up_errors:
+            glib.bubble_up_errors(future)
+
+        return future
+
+    def resolve_settings_type(self, setting_path_name: str) -> Tuple[str,
+                                                                     str,
+                                                                     Callable,
+                                                                     Callable]:
+        """
+        Resolves the type of the setting based on the setting path name.
+        :param setting_path_name: The path name of the setting.
+        :return: A tuple containing the setting type, setting attributes,
+        and the methods to get and save the settings.
+        """
+        setting_type, setting_attrs = setting_path_name.split(DOT, maxsplit=1)
+        if setting_type == "settings":
+            return (
+                setting_type,
+                setting_attrs,
+                self.get_settings,
+                self.save_settings
+            )
+        if setting_type == "app_configuration":
+            return (
+                setting_type,
+                setting_attrs,
+                self.get_app_configuration,
+                self.save_app_configuration
             )
 
-        # Otherwise we just save as normal
-        return self.executor.submit(
-            self._api.save_settings,
-            self._settings
+        raise ValueError(
+            f"Unknown setting type: {setting_type}. "
+            "Expected 'settings' or 'app_config'."
         )
 
-    def clear_settings(self):
-        """Clear in-memory settings."""
-        self._settings = None
+    def setting_attr_has_conflict(self, setting_path_name: str,
+                                  new_value: object) -> Optional[Conflict]:
+        """
+        Checks if the setting can be changed without conflicts.
+        Returns a string with the conflicts if there are any, otherwise returns
+        an empty string.
+        """
 
-    def get_available_protocols(self) -> Optional[str]:
-        """Returns an alphabetically sorted list of available protocol to use."""
-        available_protocols = self._connector.get_available_protocols_for_backend(
-            self.DEFAULT_BACKEND
-        )
+        setting_type, setting_attrs, get_settings, _ =\
+            self.resolve_settings_type(setting_path_name)
 
-        return sorted(
-            available_protocols,
-            key=lambda protocol: protocol.cls.ui_protocol
-        )
+        return Conflicts.detect(setting_type, setting_attrs, new_value,
+                                get_settings())
 
-    def send_error_to_proton(self,
-                             error: BaseException |
-                             tuple[Optional[Type[BaseException]],
-                                   Optional[BaseException],
-                                   Optional[TracebackType]]):
+    def get_setting_attr(self, setting_path_name: str) -> object:
+        """Helper method to get the settings.
+
+        In this case the setting_path_name can be a multi-layered setting, for example
+        the kill switch can be access via `settings.killswtich` while netshield can be accessed
+        via `settings.features.netshield`. Since this method tries to abstract the depth,
+        we'll be searching based on the hierarchy, example:
+
+        ```
+        setting_path_name = "settings.features.netshield"
+        setting_type = "settings"
+
+        # The below will become ["features", "netshield"]
+        setting_attrs_split = "features.netshield".split(".")
+        ```
+        So the for loop will loop for each attribute and attempt to get it from the original
+        settings object, thus solving the nesting situation.
+
+        Args:
+            setting_path_name (str):
+
+        Returns:
+            object:
+        """
+        _, setting_attrs, get_settings, _ =\
+            self.resolve_settings_type(setting_path_name)
+
+        settings = get_settings()
+        for attr in setting_attrs.split(DOT):
+            settings = getattr(settings, attr)
+
+        return settings
+
+    def save_setting_attr(self, setting_path_name: str, new_value: object):
+        """Helper method to save the settings."""
+        def set_setting(root, attr, value):
+            if attr.count(DOT) == 0:
+                setattr(root, attr, value)
+            else:
+                name, path = attr.split(DOT, maxsplit=1)
+                next_root = getattr(root, name)
+                set_setting(next_root, path, value)
+
+        setting_type, setting_attrs, get_settings, save_settings =\
+            self.resolve_settings_type(setting_path_name)
+
+        settings = get_settings()
+
+        set_setting(settings, setting_attrs, new_value)
+
+        save_settings(Conflicts.resolve(setting_type, setting_attrs, new_value,
+                                        settings))
+
+    def get_available_protocols(self, protocol_group: str) -> List[type[VPNConnection]]:
+        """Returns a list of available protocols sorted by priority."""
+
+        return list(self._connector.iter_available_protocols(protocol_group))
+
+    def send_error_to_proton(
+        self,
+        error: Union[
+            BaseException,
+            tuple[
+                Optional[Type[BaseException]],
+                Optional[BaseException],
+                Optional[TracebackType]]
+            ]
+    ):
         """Sends the error to Sentry."""
         self._api.usage_reporting.report_error(error)
+
+    def run_subprocess(self, commands: list, check: bool = False) -> Future:
+        """Run asynchronously subprocess command so it does not block UI."""
+        return self.executor.submit(
+            subprocess.run,
+            commands,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=check,
+        )
+
+    @property
+    def _local_agent_available(self) -> bool:
+        try:
+            import proton.vpn.local_agent  # noqa: F401,E501 # pylint: disable=unused-import, import-outside-toplevel
+        except ModuleNotFoundError:
+            return False
+
+        return True
+
+    def enable_refresher(self, callback: Callable[[Future], None]):
+        """Enables the refresher and calls the callback when the server list is available."""
+        def error_callback(exception: Exception):
+            GLib.idle_add(
+                self.exception_handler.handle_exception,
+                type(exception), exception, exception.__traceback__
+            )
+
+        async def enable():
+            self._api.refresher.set_error_callback(error_callback)
+            await self._api.refresher.enable()
+
+        future = self.executor.submit(enable)
+
+        def on_refresher_enabled(future):
+            GLib.idle_add(callback, future)
+
+        future.add_done_callback(on_refresher_enabled)
+
+    def disable_refresher(self):
+        """Disables the refresher."""
+        async def disable():
+            await self._api.refresher.disable()
+            self._api.refresher.unset_error_callback()
+
+        future = self.executor.submit(disable)
+        future.add_done_callback(lambda f: GLib.idle_add(f.result))
+
+    def set_server_list_updated_callback(self, callback: Callable[[], None]):
+        """Sets the callback that is called when the server list is updated."""
+        future = self.executor.submit(
+            self._api.refresher.set_server_list_updated_callback,
+            lambda: GLib.idle_add(callback)
+        )
+        future.add_done_callback(lambda f: GLib.idle_add(f.result))
+
+    def unset_server_list_updated_callback(self):
+        """Unsets the callback that is called when the server list is updated."""
+        future = self.executor.submit(self._api.refresher.set_server_list_updated_callback, None)
+        future.add_done_callback(lambda f: GLib.idle_add(f.result))
+
+    def set_server_loads_updated_callback(self, callback: Callable[[], None]):
+        """Sets the callback that is called when the server loads are updated."""
+        future = self.executor.submit(
+            self._api.refresher.set_server_loads_updated_callback,
+            lambda: GLib.idle_add(callback)
+        )
+        future.add_done_callback(lambda f: GLib.idle_add(f.result))
+
+    def unset_server_loads_updated_callback(self):
+        """Unsets the callback that is called when the server loads are updated."""
+        future = self.executor.submit(self._api.refresher.set_server_loads_updated_callback, None)
+        future.add_done_callback(lambda f: GLib.idle_add(f.result))
+
+    def set_location_names_updated_callback(self, callback: Callable[[], None]):
+        """Sets the callback that is called when the location names are updated."""
+        future = self.executor.submit(
+            self._api.refresher.set_location_names_updated_callback,
+            lambda: GLib.idle_add(callback)
+        )
+        future.add_done_callback(lambda f: GLib.idle_add(f.result))
+
+    def unset_location_names_updated_callback(self):
+        """Unsets the callback that is called when the location names are updated."""
+        future = self.executor.submit(
+            self._api.refresher.set_location_names_updated_callback, None)
+        future.add_done_callback(lambda f: GLib.idle_add(f.result))
+
+    @property
+    def split_tunneling_available(self) -> bool:
+        """Returns if split tunneling is available.
+
+        Returns:
+            bool: `True` if available, `False` otherwise
+        """
+        return self._connector.is_split_tunneling_available
+
+    @property
+    def fido2_available(self) -> bool:
+        """
+        Returns if FIDO2 is available.
+        """
+        return self._api.supports_fido2

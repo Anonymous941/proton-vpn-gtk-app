@@ -2,7 +2,7 @@
 Module for the about dialog.
 
 
-Copyright (c) 2023 Proton AG
+Copyright (c) 2026 Proton AG
 
 This file is part of Proton VPN.
 
@@ -21,18 +21,19 @@ along with ProtonVPN.  If not, see <https://www.gnu.org/licenses/>.
 """
 from pathlib import Path
 
-from proton.vpn.app.gtk import Gtk
-
+from gi.repository import Gdk, Gtk
 from proton.vpn.app.gtk.assets import icons
 from proton.vpn.app.gtk import __version__
+from proton.vpn.app.gtk.translator import C_
+from proton.vpn.app.gtk.utils.window import register_proton_window
 
 
 class AboutDialog(Gtk.AboutDialog):
     """This widget will display general information about this application"""
-    TITLE = "About"
-    PROGRAM_NAME = "Proton VPN Linux Client"
+    TITLE = C_("title", "About")
+    PROGRAM_NAME = C_("label", "Proton VPN Linux Client")
     VERSION = __version__
-    COPYRIGHT = "Proton AG 2023"
+    COPYRIGHT = "Proton AG 2026"
     LICENSE = Gtk.License.GPL_3_0
     WEBSITE = "https://protonvpn.com"
     WEBSITE_LABEL = "Proton VPN"
@@ -40,6 +41,7 @@ class AboutDialog(Gtk.AboutDialog):
 
     def __init__(self):
         super().__init__()
+        register_proton_window(self)
         self.set_title(self.TITLE)
         self.set_program_name(self.PROGRAM_NAME)
         self.set_version(self.VERSION)
@@ -51,4 +53,6 @@ class AboutDialog(Gtk.AboutDialog):
         self._set_icon()
 
     def _set_icon(self):
-        self.set_logo(icons.get(Path("proton-vpn-sign.svg"), width=80, height=80))
+        pixbuf = icons.get(Path("proton-vpn-sign.svg"), width=80, height=80)
+        texture = Gdk.Texture.new_for_pixbuf(pixbuf)
+        self.set_logo(texture)

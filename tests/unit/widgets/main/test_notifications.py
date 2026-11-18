@@ -18,6 +18,7 @@ along with ProtonVPN.  If not, see <https://www.gnu.org/licenses/>.
 """
 from unittest.mock import Mock, patch
 
+from proton.vpn.app.gtk import Gtk
 from proton.vpn.app.gtk.widgets.main.notifications import Notifications
 from tests.unit.testing_utils import process_gtk_events
 
@@ -35,8 +36,12 @@ def test_show_error_dialog_shows_error_in_popup_window(gtk_mock):
     notifications.show_error_dialog(ERROR_MESSAGE, ERROR_TITLE)
     process_gtk_events()
 
-    dialog_mock.format_secondary_text.assert_called_once()
-    dialog_mock.run.assert_called_once()
+    # simulate dialog user response
+    response_callback = dialog_mock.connect.call_args[0][1]
+    response_callback(dialog_mock, 0)
+
+    assert dialog_mock.props.secondary_text == ERROR_MESSAGE
+    dialog_mock.present.assert_called_once()
     dialog_mock.destroy.assert_called_once()
 
 
@@ -44,21 +49,21 @@ def test_show_error_dialog_shows_error_in_popup_window(gtk_mock):
 def test_show_error_dialog_closes_previous_dialog_if_existing(gtk_mock):
     first_dialog_mock = Mock()
     second_dialog_mock = Mock()
-    gtk_mock.MessageDialog.side_effect = [first_dialog_mock, second_dialog_mock]
+    gtk_mock.MessageDialog.return_value = second_dialog_mock
     notifications = Notifications(Mock(), Mock())
 
+    # Simulate an existing dialog being shown.
+    notifications.error_dialog = first_dialog_mock
+
     notifications.show_error_dialog(ERROR_MESSAGE, ERROR_TITLE)
-    process_gtk_events()
-    first_dialog_mock.destroy.assert_called_once()
-    notifications.show_error_dialog(ERROR_MESSAGE, ERROR_TITLE)
+
     process_gtk_events()
 
-    # The `run()` method block the event loop from continuing, meaning that
-    # in a real scenario, if a second dialog is to be displayed while the first
-    # one is being displayed, the first dialog should be destroyed only once.
-    # first_dialog_mock but during unit tests the `run()` method 
-    # does not block the event loop, thus destroying the first dialog twice.
-    assert first_dialog_mock.destroy.call_count == 2
+    # simulate user response for 2nd dialog
+    response_callback = second_dialog_mock.connect.call_args[0][1]
+    response_callback(second_dialog_mock, 0)
+
+    first_dialog_mock.destroy.assert_called_once()
     second_dialog_mock.destroy.assert_called_once()
 
 
@@ -88,3 +93,18 @@ def test_show_success_message_displays_success_message_in_app_notification_bar(g
     glib_mock.idle_add.assert_called_once_with(
         notification_bar_mock.show_success_message, "Success message"
     )
+
+
+def test_error_dialog_shows_the_title_above_the_message():
+    parent = Gtk.Window()
+    notifications = Notifications(main_window=parent, notification_bar=Mock())
+
+    notifications.show_error_dialog(ERROR_MESSAGE, ERROR_TITLE)
+    process_gtk_events()
+
+    dialog = notifications.error_dialog
+    assert dialog.props.text == ERROR_TITLE
+    assert dialog.props.secondary_text == ERROR_MESSAGE
+    dialog.destroy()
+    parent.destroy()
+    process_gtk_events()

@@ -1,0 +1,95 @@
+"""
+Copyright (c) 2026 Proton AG
+
+This file is part of Proton VPN.
+
+Proton VPN is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+Proton VPN is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with ProtonVPN.  If not, see <https://www.gnu.org/licenses/>.
+
+
+Reproduce the app's container context around a demo widget.
+
+In the app, embeddable widgets (login, quick-connect, ...) don't stand alone:
+they live inside MainWidget's "#main-widget > #content-layout" chain, which CSS
+pads by 20px, and they're shown at the MainWindow's column width. A widget shown
+bare misses that padding (its contents run edge-to-edge) and that width. A
+modal, by contrast, is a self-contained window and needs no framing.
+"""
+from typing import Optional
+
+from proton.vpn.connection import states
+
+from proton.vpn.app.gtk import Gtk
+from proton.vpn.app.gtk.demo.sizing import NATURAL, UNCONSTRAINED
+from proton.vpn.app.gtk.widgets.main.main_widget import MainWidget
+from proton.vpn.app.gtk.widgets.main.main_window import MainWindow
+from proton.vpn.app.gtk.utils.window import PROTON_APP_CSS_CLASS
+
+
+def _app_header_bar_height() -> int:
+    """The height of a header bar in an app window.
+
+    It's measured inside a box with the .proton-app class, so the app's header
+    bar styles apply to it as they do in the window.
+    """
+    root = Gtk.Box()
+    root.add_css_class(PROTON_APP_CSS_CLASS)
+    header_bar = Gtk.HeaderBar()
+    root.append(header_bar)
+    return header_bar.measure(Gtk.Orientation.VERTICAL, UNCONSTRAINED)[1]
+
+
+def framed_like_app(
+    widget: Gtk.Widget,
+    fill_height: bool = False,
+    state: Optional[states.State] = None,
+) -> Gtk.Widget:
+    """Wrap `widget` in the app's #main-widget > #content-layout chain.
+
+    Naming the chain makes the app's `#main-widget #content-layout` rule
+    (padding: 20px) match, insetting the widget exactly as in the app, and the
+    wrapper is pinned to the MainWindow's column width.
+
+    fill_height distinguishes the two kinds of embeddable widget:
+      - True for a widget that fills the window (e.g. login): the wrapper is also
+        pinned to the window's content height (window height minus the header
+        bar), so the form spreads as it does in the app instead of collapsing.
+      - False for a widget that's only a band within the window (e.g. quick-connect):
+        the height is left natural.
+
+    state selects the background gradient, which the app tints per connection
+    state via a CSS class on #main-widget (the classless rule is transparent, so
+    without a state there is no gradient at all).
+    """
+    content_layout = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+    content_layout.set_name("content-layout")
+    content_layout.append(widget)
+
+    main_widget = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+    main_widget.set_name("main-widget")
+    # Styled as if inside an app window.
+    main_widget.add_css_class(PROTON_APP_CSS_CLASS)
+    main_widget.add_css_class("background")
+    main_widget.append(content_layout)
+
+    if state and (css_class := MainWidget.STATE_CSS_CLASSES.get(type(state))):
+        main_widget.add_css_class(css_class)
+
+    if fill_height:
+        content_layout.set_vexpand(True)  # fill the window height, as in the app
+        main_widget.set_size_request(
+            MainWindow.WIDTH, MainWindow.HEIGHT - _app_header_bar_height()
+        )
+    else:
+        main_widget.set_size_request(MainWindow.WIDTH, NATURAL)
+    return main_widget

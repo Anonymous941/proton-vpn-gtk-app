@@ -20,29 +20,34 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with ProtonVPN.  If not, see <https://www.gnu.org/licenses/>.
 """
+from concurrent.futures import Future
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 import time
 
 from gi.repository import GObject, GLib
 
 from proton.vpn import logging
 
+from proton.vpn.connection.states import State
 from proton.vpn.app.gtk.controller import Controller
 from proton.vpn.app.gtk import Gtk
-from proton.vpn.app.gtk.services import VPNDataRefresher
+from proton.vpn.app.gtk.utils.safe_signal_connect import safe_signal_connect
 from proton.vpn.app.gtk.widgets.vpn.quick_connect_widget import QuickConnectWidget
-from proton.vpn.app.gtk.widgets.vpn.serverlist.serverlist import ServerListWidget
+from proton.vpn.app.gtk.widgets.vpn.search_results import SearchResults
 from proton.vpn.app.gtk.widgets.vpn.search_entry import SearchEntry
+from proton.vpn.app.gtk.widgets.vpn.serverlist.city_view.serverlist import ServerListWidget
 from proton.vpn.app.gtk.widgets.vpn.connection_status_widget import VPNConnectionStatusWidget
-from proton.vpn.app.gtk.widgets.main.loading_widget import OverlayWidget
-from proton.vpn.core.session.client_config import ClientConfig
-from proton.vpn.core.session.servers import ServerList
+from proton.vpn.app.gtk.widgets.main.notifications import Notifications
+from proton.vpn.session.servers import ServerList
 
 if TYPE_CHECKING:
     from proton.vpn.app.gtk.app import MainWindow
 
 logger = logging.getLogger(__name__)
+
+# The feature flag that enables the lazy loading serverlist UI
+LINUX_DEFERRED_UI = "LinuxDeferredUI"
 
 
 @dataclass
@@ -53,14 +58,11 @@ class VPNWidgetState:
     Attributes:
         is_widget_ready: flag set to True once the widget has been initialized.
         user_tier: tier of the logged-in user.
-        vpn_data_ready_handler_id: handler id obtained when connecting to the
-        vpn-data-ready signal on VPNDataRefresher.
-        after VPN disconnection.
+        load_start_time: timestamp set when the widget starts loading.
     """
     is_widget_ready: bool = False
-    user_tier: int = None
-    vpn_data_ready_handler_id: int = None
-    load_start_time: int = None
+    user_tier: Optional[int] = None
+    load_start_time: Optional[float] = None
 
 
 # pylint: disable=too-many-instance-attributes
@@ -69,7 +71,8 @@ class VPNWidget(Gtk.Box):
 
     def __init__(
         self, controller: Controller,
-        main_window: "MainWindow", overlay_widget: OverlayWidget
+        main_window: "MainWindow",
+        notifications=Notifications
     ):
         super().__init__(spacing=10)
 
@@ -78,39 +81,93 @@ class VPNWidget(Gtk.Box):
         self._state.load_start_time = time.time()
         self._controller = controller
 
-        self.connection_status_widget = VPNConnectionStatusWidget(controller, overlay_widget)
-        self.pack_start(self.connection_status_widget, expand=False, fill=False, padding=0)
+        self.connection_status_widget = VPNConnectionStatusWidget(
+            controller, notifications
+        )
+        self.append(self.connection_status_widget)
+
+        self._connected_signals: list[tuple[int, Gtk.Widget]] = []
 
         self.quick_connect_widget = QuickConnectWidget(self._controller)
-        self.pack_start(self.quick_connect_widget, expand=False, fill=False, padding=0)
+        self.append(self.quick_connect_widget)
 
-        self.server_list_widget = ServerListWidget(self._controller)
-        self.pack_end(self.server_list_widget, expand=True, fill=True, padding=0)
-        self.server_list_widget.connect("ui-updated", self._on_server_list_updated)
-
-        self.search_widget = SearchEntry(self.server_list_widget)
+        self.search_widget = SearchEntry()
+        self.server_list_widget = ServerListWidget(self._controller, self.search_widget)
+        self.append(self.server_list_widget)
+        self._connected_signals.append((
+            safe_signal_connect(
+                self.server_list_widget, "ui-updated", self._on_server_list_updated
+            ),
+            self.server_list_widget
+        ))
         main_window.add_keyboard_shortcut(
             target_widget=self.search_widget,
             target_signal="request_focus",
             shortcut="<Control>f"
         )
-        self.pack_start(self.search_widget, expand=False, fill=True, padding=0)
+        self.search_results_widget = SearchResults(self._controller)
+        revealer = Gtk.Revealer()
+        revealer.set_child(self.search_results_widget)
+        self.search_results_widget.set_revealer(revealer)
 
-        self.connection_status_subscribers = []
-        for widget in [
-            self.connection_status_widget,
-            self.quick_connect_widget,
-            self.server_list_widget
-        ]:
-            self.connection_status_subscribers.append(widget)
+        self._connected_signals.append((
+            safe_signal_connect(
+                self.search_widget,
+                "search-changed",
+                self.search_results_widget.on_search_changed,
+            ),
+            self.search_widget
+        ))
+        self._connected_signals.append((
+            safe_signal_connect(
+                self.search_results_widget,
+                "result-chosen",
+                self.server_list_widget.focus_on_entry
+            ),
+            self.search_results_widget
+        ))
+        self._connected_signals.append((
+            safe_signal_connect(
+                self.search_results_widget,
+                "result-chosen",
+                self._reset_search_on_result_chosen
+            ),
+            self.search_results_widget
+        ))
+        self.insert_child_after(self.search_widget, self.quick_connect_widget)
+        self.insert_child_after(revealer, self.search_widget)
+
+        signal_id = safe_signal_connect(
+            self,
+            "connection-state-changed",
+            self._broadcast_connection_state
+        )
+        self._connected_signals.append((signal_id, self))
 
         self.set_orientation(Gtk.Orientation.VERTICAL)
 
-        self.connect("unrealize", self._on_unrealize)
+        safe_signal_connect(self, "unrealize", self._on_unrealize)
+
+    def _reset_search_on_result_chosen(self, *_) -> None:
+        self.search_widget.reset()
+
+    def _broadcast_connection_state(self, _, state):
+        # The button description and the announcement are both read back
+        # from the status labels, so those are updated first.
+        self.connection_status_widget.update_status(state)
+        self.quick_connect_widget.set_accessible_details(
+            self.connection_status_widget.accessible_details
+        )
+        self.quick_connect_widget.connection_status_update(state)
+        self.connection_status_widget.announce_state_change(state)
 
     @GObject.Signal
     def vpn_widget_ready(self):
         """Signal emitted when all resources were loaded and widget is ready."""
+
+    @GObject.Signal(name="connection-state-changed", arg_types=(object,))
+    def connection_state_changed(self, state: State):
+        """Signal emitted whenever the VPN connection state changes."""
 
     @property
     def user_tier(self) -> int:
@@ -120,27 +177,21 @@ class VPNWidget(Gtk.Box):
     def _on_unrealize(self, _widget):
         self.unload()
 
-    def status_update(self, connection_state):
+    def status_update(self, connection_state: State):
         """This method is called whenever the VPN connection status changes."""
         logger.debug(
             f"VPN widget received connection status update: "
             f"{type(connection_state).__name__}."
         )
 
-        def update_widget():
-            for widget in self.connection_status_subscribers:
-                widget.connection_status_update(connection_state)
+        GLib.idle_add(self.emit, "connection-state-changed", connection_state)
 
-        GLib.idle_add(update_widget)
-
-    def _on_vpn_data_ready(
+    def _on_refresher_enabled(
             self,
-            _vpn_data_refresher: VPNDataRefresher,
-            server_list: ServerList,
-            _client_config: ClientConfig
+            future: Future
     ):
-        if not self._state.is_widget_ready:
-            self.display(self._controller.user_tier, server_list)
+        future.result()
+        self.display(self._controller.user_tier, self._controller.server_list)
 
     def load(self):
         """
@@ -151,29 +202,28 @@ class VPNWidget(Gtk.Box):
         data has been downloaded, the widget will be automatically displayed.
         """
         self._state.load_start_time = time.time()
-        self._state.vpn_data_ready_handler_id = self._controller.vpn_data_refresher.connect(
-            "vpn-data-ready", self._on_vpn_data_ready
-        )
-        self._controller.vpn_data_refresher.enable()
+        self._controller.enable_refresher(self._on_refresher_enabled)
 
     def display(self, user_tier: int, server_list: ServerList):
         """Displays the widget once all necessary data from API has been acquired."""
         self._state.user_tier = user_tier
-
-        self.show_all()
 
         # The VPN widget subscribes to connection status updates, and then
         # passes on these connection status updates to child widgets
         self._controller.register_connection_status_subscriber(self)
         self._controller.reconnector.enable()
 
+        # Apply the correct connection state immediately so there's no flash of
+        # "Unprotected" when the app starts already connected.
+        self.status_update(self._controller.current_connection_status)
+
         self.server_list_widget.display(user_tier=user_tier, server_list=server_list)
 
     def _on_server_list_updated(self, *_):
-        if not self._state.is_widget_ready:
+        if not self._state.is_widget_ready:  # noqa: E501 # pylint: disable=line-too-long # nosemgrep: python.lang.maintainability.is-function-without-parentheses.is-function-without-parentheses
             # Only update the status at this point as widgets are already generated
             self.status_update(self._controller.current_connection_status)
-            self._state.is_widget_ready = True
+            self._state.is_widget_ready = True  # noqa: E501 # pylint: disable=line-too-long # nosemgrep: python.lang.maintainability.is-function-without-parentheses.is-function-without-parentheses
             self.emit("vpn-widget-ready")
             logger.info(
                 f"VPN widget is ready "
@@ -183,20 +233,22 @@ class VPNWidget(Gtk.Box):
 
     def unload(self):
         """Unloads the widget and resets its state."""
+        for signal_id, widget in self._connected_signals:
+            widget.disconnect(signal_id)
+        self._connected_signals.clear()
         self._controller.disconnect()
-        self._controller.vpn_data_refresher.disconnect(
-            self._state.vpn_data_ready_handler_id
-        )
 
         self._controller.unregister_connection_status_subscriber(self)
         self._controller.reconnector.disable()
-        self._controller.vpn_data_refresher.disable()
+        self._controller.disable_refresher()
 
         for widget in [
             self.connection_status_widget,
             self.quick_connect_widget, self.server_list_widget
         ]:
-            widget.hide()
+            widget.set_visible(False)
+
+        self.connection_status_widget.reset_announcements()
 
         # Reset widget state
         self._state = VPNWidgetState()

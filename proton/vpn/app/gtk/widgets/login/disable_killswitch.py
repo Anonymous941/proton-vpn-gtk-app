@@ -19,11 +19,13 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with ProtonVPN.  If not, see <https://www.gnu.org/licenses/>.
 """
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from gi.repository import GObject
 
 from proton.vpn.app.gtk import Gtk
+from proton.vpn.app.gtk.translator import C_
+from proton.vpn.app.gtk.utils.safe_signal_connect import safe_signal_connect
 from proton.vpn.app.gtk.widgets.main.confirmation_dialog import ConfirmationDialog
 
 if TYPE_CHECKING:
@@ -32,39 +34,45 @@ if TYPE_CHECKING:
 
 class KillSwitchLabel(Gtk.Label):
     """Label objet that already contains some styling and pre-configurations"""
-    LABEL_TEXT = "Kill switch is blocking any outgoing connections."
+    # Label showed to user informing them of how kill switch works.
+    LABEL_TEXT = C_("message", "Kill switch is blocking any outgoing connections.")
 
     def __init__(self):
         super().__init__(label=KillSwitchLabel.LABEL_TEXT)
-        self.set_line_wrap(True)
+        self.set_wrap(True)
         # set_max_width_chars is required for set_line_wrap to have effect.
         self.set_max_width_chars(20)
         self.set_justify(Gtk.Justification.LEFT)
+        # Takes the width the button doesn't use, left-aligned.
+        self.set_hexpand(True)
+        self.set_xalign(0)
 
 
 class DisableKillSwitchButton(Gtk.Button):
     """Custom button that already has styling added to it."""
-    BUTTON_LABEL = "Disable"
+    # Button disabling the kill switch
+    BUTTON_LABEL = C_("button", "Disable")
 
     def __init__(self):
         super().__init__(label=DisableKillSwitchButton.BUTTON_LABEL)
-        self.get_style_context().add_class("secondary")
-        self.get_style_context().add_class("spaced")
+        self.add_css_class("secondary")
 
 
 class DisableKillSwitchWidget(Gtk.Revealer):
     """This is a revealer that displays a short informational message
     and a button it disable the kill switch.
     """
-    DIALOG_TITLE = "Kill Switch Enabled"
-    DIALOG_MESSAGE = "Permanent Kill Switch is blocking any outgoing connections "\
-        "and preventing your IP to be exposed.\n\n"\
-        "Do you want to disable Kill Switch ?"
+    # Title of pop-up with option to disable kill switch.
+    DIALOG_TITLE = C_("title", "Kill Switch Enabled")
+    # Dialog message of pop-up with option to disable kill switch.
+    DIALOG_MESSAGE = C_("message", "Permanent Kill Switch is blocking any outgoing connections "
+                        "and preventing your IP to be exposed.\n\n"
+                        "Do you want to disable Kill Switch?")
 
     def __init__(
         self, main_window: "MainWindow",
-        killswitch_label: KillSwitchLabel = None,
-        killswitch_button: DisableKillSwitchButton = None,
+        killswitch_label: Optional[KillSwitchLabel] = None,
+        killswitch_button: Optional[DisableKillSwitchButton] = None,
     ):
         super().__init__()
         self.set_name("login-kill-switch-revealer")
@@ -74,16 +82,19 @@ class DisableKillSwitchWidget(Gtk.Revealer):
         self.killswitch_label = killswitch_label or KillSwitchLabel()
         self.disable_killswitch_button = killswitch_button or DisableKillSwitchButton()
 
-        container = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        container = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        self.disable_killswitch_button.set_valign(Gtk.Align.CENTER)
 
-        container.pack_start(self.killswitch_label, expand=False, fill=False, padding=0)
-        container.pack_end(self.disable_killswitch_button, expand=False, fill=False, padding=0)
+        container.append(self.killswitch_label)
+        container.append(self.disable_killswitch_button)
 
-        self.add(container)
-        self.set_no_show_all(False)
-        self.show_all()
+        self.set_child(container)
 
-        self.disable_killswitch_button.connect("clicked", self._on_button_click)
+        safe_signal_connect(
+            self.disable_killswitch_button,
+            "clicked",
+            self._on_button_click
+        )
 
     def _on_button_click(self, _: Gtk.Button):
         dialog = ConfirmationDialog(
@@ -91,12 +102,18 @@ class DisableKillSwitchWidget(Gtk.Revealer):
             DisableKillSwitchWidget.DIALOG_TITLE
         )
         dialog.set_transient_for(self._main_window)
-        # run() blocks the main loop, and only exist once the `::response` signal
-        # is emitted.
-        response = Gtk.ResponseType(dialog.run())
-        dialog.destroy()
+        dialog.set_modal(True)
 
-        if response == Gtk.ResponseType.YES:
+        safe_signal_connect(
+            dialog,
+            "response",
+            self._on_dialog_response
+        )
+        dialog.present()
+
+    def _on_dialog_response(self, dialog: ConfirmationDialog, response_id: int):
+        dialog.destroy()
+        if response_id == Gtk.ResponseType.YES:
             self.emit("disable-killswitch")
 
     @GObject.Signal

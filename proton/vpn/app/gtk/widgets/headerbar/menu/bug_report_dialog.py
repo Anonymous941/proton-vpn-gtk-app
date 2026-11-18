@@ -23,19 +23,23 @@ from __future__ import annotations
 
 import io
 import re
-import subprocess  # nosec B404
+import subprocess  # nosec B404 # nosemgrep: gitlab.bandit.B404
 from tempfile import NamedTemporaryFile
 from concurrent.futures import Future
 
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, List, Optional
 from gi.repository import Gtk, GLib
 
 from proton.session.exceptions import ProtonAPINotReachable, ProtonAPIError
-from proton.vpn.core.session import BugReportForm
+from proton.vpn.session.dataclasses import BugReportForm
 from proton.vpn.app.gtk import __version__
+from proton.vpn.app.gtk.translator import C_
 from proton.vpn import logging
 from proton.vpn.app.gtk.utils.executor import AsyncExecutor
+from proton.vpn.app.gtk.utils.safe_signal_connect import safe_signal_connect
+from proton.vpn.app.gtk.utils.window import register_proton_window
 from proton.vpn.app.gtk.widgets.main.notification_bar import NotificationBar
+from proton.vpn.app.gtk.utils.entry import add_clear_icon
 
 if TYPE_CHECKING:
     from proton.vpn.app.gtk.controller import Controller
@@ -51,13 +55,19 @@ class BugReportDialog(Gtk.Dialog):  # pylint: disable=too-many-instance-attribut
     EMAIL_REGEX = re.compile(
         r'[^@\s]+@[^@\s]{2,}\.[^@\s\.-]{2,}'
     )
-    BUG_REPORT_SENDING_MESSAGE = "Reporting your issue..."
-    BUG_REPORT_SUCCESS_MESSAGE = "Your issue has been reported"
-    BUG_REPORT_NETWORK_ERROR_MESSAGE = "Proton services could not be reached.\n" \
-                                       "Please try again."
-    BUG_REPORT_UNEXPECTED_ERROR_MESSAGE = "Something went wrong. " \
-                                          "Please try submitting your report at:\n" \
-                                          "https://protonvpn.com/support-form"
+    BUG_REPORT_SENDING_MESSAGE = C_("message", "Reporting your issue...")
+    BUG_REPORT_SUCCESS_MESSAGE = C_("message", "Your issue has been reported")
+    BUG_REPORT_NETWORK_ERROR_MESSAGE = C_(
+        "error",
+        "Proton services could not be reached.\n"
+        "Please try again."
+    )
+    SUPPORT_FORM_URL = "https://protonvpn.com/support-form"
+    BUG_REPORT_UNEXPECTED_ERROR_MESSAGE = C_(
+        "error",
+        "Something went wrong. "
+        "Please try submitting your report at:\n"
+    ) + SUPPORT_FORM_URL
     BUG_REPORT_TITLE = "Report from Linux app"
     BUG_REPORT_CLIENT = "Linux GUI"
     BUG_REPORT_VERSION = __version__
@@ -65,9 +75,11 @@ class BugReportDialog(Gtk.Dialog):  # pylint: disable=too-many-instance-attribut
 
     def __init__(
         self, controller: Controller, main_window: MainWindow,
-        notification_bar: NotificationBar = None, log_collector: LogCollector = None
+        notification_bar: Optional[NotificationBar] = None,
+        log_collector: Optional["LogCollector"] = None
     ):
         super().__init__()
+        register_proton_window(self)
         self.set_name("bug-report-dialog")
         self._controller = controller
         self._main_window = main_window
@@ -76,20 +88,19 @@ class BugReportDialog(Gtk.Dialog):  # pylint: disable=too-many-instance-attribut
             self._controller.executor
         )
 
-        self.set_title("Report an Issue")
+        self.set_title(C_("title", "Report an Issue"))
         self.set_default_size(BugReportDialog.WIDTH, BugReportDialog.HEIGHT)
 
-        cancel_button = self.add_button("_Cancel", Gtk.ResponseType.CANCEL)
-        submit_button = self.add_button("_Submit", Gtk.ResponseType.OK)
+        self.cancel_button = self.add_button(C_("button", "_Cancel"), Gtk.ResponseType.CANCEL)
+        self.submit_button = self.add_button(C_("button", "_Submit"), Gtk.ResponseType.OK)
 
-        cancel_button.get_style_context().add_class("danger")
-        submit_button.get_style_context().add_class("primary")
+        self.cancel_button.add_css_class("danger")
+        self.submit_button.add_css_class("primary")
 
-        self.connect("response", self._on_response)
-        self.connect("realize", lambda _: self.show_all())  # pylint: disable=no-member
+        safe_signal_connect(self, "response", self._on_response)
 
         self._generate_fields()
-        self.set_response_sensitive(Gtk.ResponseType.OK, False)
+        self.submit_button.set_sensitive(False)
 
     @property
     def status_label(self) -> str:
@@ -186,7 +197,7 @@ class BugReportDialog(Gtk.Dialog):  # pylint: disable=too-many-instance-attribut
         self.email_entry.set_sensitive(False)
         self.description_textview.set_sensitive(False)
         self.send_logs_checkbox.set_sensitive(False)
-        self.set_response_sensitive(Gtk.ResponseType.OK, False)
+        self.submit_button.set_sensitive(False)
 
     def _enable_form(self):
         self.username_entry.set_sensitive(True)
@@ -194,12 +205,10 @@ class BugReportDialog(Gtk.Dialog):  # pylint: disable=too-many-instance-attribut
         self.description_textview.set_sensitive(True)
         self.send_logs_checkbox.set_sensitive(True)
         if self._can_user_submit_form:
-            self.set_response_sensitive(Gtk.ResponseType.OK, True)
+            self.submit_button.set_sensitive(True)
 
     def _on_entry_changed(self, _: Gtk.Widget):
-        self.set_response_sensitive(
-            Gtk.ResponseType.OK, self._can_user_submit_form
-        )
+        self.submit_button.set_sensitive(self._can_user_submit_form)
 
     @property
     def _can_user_submit_form(self) -> bool:
@@ -221,40 +230,51 @@ class BugReportDialog(Gtk.Dialog):  # pylint: disable=too-many-instance-attribut
 
     def _generate_fields(self):  # pylint: disable=too-many-statements
         """Generates the necessary fields for the report."""
-        layout = Gtk.Box.new(orientation=Gtk.Orientation.VERTICAL, spacing=3)
-        layout.set_border_width(0)
+        layout = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3)
+        layout.set_margin_top(0)
+        layout.set_margin_bottom(0)
+        layout.set_margin_start(0)
+        layout.set_margin_end(0)
+        layout.append(self.notification_bar)
 
-        layout.add(self.notification_bar)
-        content = Gtk.Box.new(orientation=Gtk.Orientation.VERTICAL, spacing=3)
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3)
         content.set_name("bug-report-content")
-        layout.add(content)
+        layout.append(content)
 
-        username_label = Gtk.Label.new("Username")
+        username_label = Gtk.Label(label=C_("label", "Username"))
         username_label.set_halign(Gtk.Align.START)
-        self.username_entry = Gtk.Entry.new()
+
+        self.username_entry = Gtk.Entry()
+        add_clear_icon(self.username_entry)
         self.username_entry.set_property("margin-bottom", 10)
         self.username_entry.set_input_purpose(Gtk.InputPurpose.FREE_FORM)
         self.username_entry.set_name("username")
-        content.add(username_label)  # pylint: disable=no-member
-        content.add(self.username_entry)  # pylint: disable=no-member
+        content.append(username_label)
+        content.append(self.username_entry)
 
-        email_label = Gtk.Label.new("Email")
+        email_label = Gtk.Label(label=C_("label", "Email"))
         email_label.set_halign(Gtk.Align.START)
-        self.email_entry = Gtk.Entry.new()
+
+        self.email_entry = Gtk.Entry()
+        add_clear_icon(self.email_entry)
         self.email_entry.set_property("margin-bottom", 10)
         self.email_entry.set_input_purpose(Gtk.InputPurpose.EMAIL)
         self.email_entry.set_name("email")
-        content.add(email_label)  # pylint: disable=no-member
-        content.add(self.email_entry)  # pylint: disable=no-member
+        content.append(email_label)
+        content.append(self.email_entry)
 
         min_characters = BugReportDialog.BUG_REPORT_DESCRIPTION_MIN_CHARACTERS
-        description_label = Gtk.Label.new(
-            f"Description (minimum {min_characters} characters)"
+        description_label = Gtk.Label(
+            # Textfield with minimum character count. Count is always plural.
+            label=C_(
+                "label",
+                "Description (minimum {count} characters)"
+            ).format(count=min_characters)
         )
 
         description_label.set_halign(Gtk.Align.START)
         # Has to have min 50 chars
-        self.description_buffer = Gtk.TextBuffer.new(None)
+        self.description_buffer = Gtk.TextBuffer()
         self.description_textview = Gtk.TextView.new_with_buffer(
             self.description_buffer
         )
@@ -263,39 +283,45 @@ class BugReportDialog(Gtk.Dialog):  # pylint: disable=too-many-instance-attribut
         self.description_textview.set_justification(Gtk.Justification.FILL)
         self.description_textview.set_name("description")
         scrolled_window_textview = Gtk.ScrolledWindow()
+        scrolled_window_textview.set_has_frame(True)
         scrolled_window_textview.set_property("margin-bottom", 10)
         scrolled_window_textview.set_min_content_height(100)
-        scrolled_window_textview.add(self.description_textview)  # pylint: disable=no-member
-        content.add(description_label)  # pylint: disable=no-member
-        content.add(scrolled_window_textview)  # pylint: disable=no-member
+        scrolled_window_textview.set_child(self.description_textview)
+        content.append(description_label)
+        content.append(scrolled_window_textview)
 
-        self.send_logs_checkbox = Gtk.CheckButton.new_with_label("Send error logs")
+        self.send_logs_checkbox = Gtk.CheckButton.new_with_label(
+            C_("button", "Send error logs")
+        )
         self.send_logs_checkbox.set_active(True)
         self.send_logs_checkbox.set_name("send_logs")
-        content.add(self.send_logs_checkbox)  # pylint: disable=no-member
+        content.append(self.send_logs_checkbox)
 
-        # By default Gtk.Dialog has a vertical box child (Gtk.Box) `vbox`
-        self.vbox.add(layout)  # pylint: disable=no-member
-        self.vbox.set_border_width(0)  # pylint: disable=no-member
-        self.vbox.set_spacing(20)  # pylint: disable=no-member
+        content_area = self.get_content_area()
+        content_area.append(layout)
+        content_area.set_margin_top(0)
+        content_area.set_margin_bottom(0)
+        content_area.set_margin_start(0)
+        content_area.set_margin_end(0)
+        content_area.set_spacing(20)
 
-        self.username_entry.connect(
-            "changed", self._on_entry_changed
+        safe_signal_connect(
+            self.username_entry, "changed", self._on_entry_changed
         )
-        self.email_entry.connect(
-            "changed", self._on_entry_changed
+        safe_signal_connect(
+            self.email_entry, "changed", self._on_entry_changed
         )
-        self.description_buffer.connect(
-            "changed", self._on_entry_changed
+        safe_signal_connect(
+            self.description_buffer, "changed", self._on_entry_changed
         )
 
     def get_submit_button(self):
         """Returns the Submit button."""
-        return self.get_widget_for_response(Gtk.ResponseType.OK)
+        return self.submit_button
 
     def click_on_submit_button(self):
         """Clicks the Submit button."""
-        self.get_widget_for_response(Gtk.ResponseType.OK).clicked()
+        self.submit_button.emit("clicked")
 
 
 class LogCollector:  # pylint: disable=too-few-public-methods
@@ -309,15 +335,15 @@ class LogCollector:  # pylint: disable=too-few-public-methods
         Generates and returns all available logs asynchronously.
         The future result is a List of file objects.
         """
-        logs_future = Future()
 
-        app_log = self._get_app_log()
-        nm_log_future = self._generate_network_manager_log()
-        nm_log_future.add_done_callback(
-            lambda f: logs_future.set_result([app_log, f.result()])
-        )
+        def _collect_logs():
+            return [
+                self._get_app_log(),
+                self._generate_network_manager_log(),
+                self._get_daemon_log()
+            ]
 
-        return logs_future
+        return self._executor.submit(_collect_logs)
 
     def _get_app_log(self) -> io.IOBase:
         """Get app log"""
@@ -328,20 +354,39 @@ class LogCollector:  # pylint: disable=too-few-public-methods
 
         raise RuntimeError("App logs not found.")
 
-    def _generate_network_manager_log(self) -> Future:
+    def _get_daemon_log(self) -> io.IOBase:
+        with NamedTemporaryFile(
+            prefix="SplitTunneling-", suffix=".log", delete=False
+        ) as temp_file:
+            args = [
+                "journalctl", "-u", "me.proton.vpn.split_tunneling", "--no-pager",
+                "--utc", "--since=-1d", "--no-hostname"
+            ]
+            process = subprocess.run(args,  # nosec B603 # noqa E501 # pylint: disable=no-member, disable=line-too-long # nosemgrep: gitlab.bandit.B604, python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit
+                                            stdout=temp_file,
+                                            check=False)
+            if process.returncode == 0:
+                # We're waiting for the process to terminate before
+                # reading the file, so we should be okay to open it.
+                return open(temp_file.name, "rb")  # pylint: disable=line-too-long # noqa: E501 # nosemgrep: python.lang.correctness.tempfile.flush.tempfile-without-flush
+
+            raise RuntimeError("Split tunneling logs could not be generated.")
+
+    def _generate_network_manager_log(self) -> io.IOBase:
         """Generate Network Manager logs"""
-        def run_subprocess():
-            with NamedTemporaryFile(
-                prefix="NetworkManager-", suffix=".log", delete=False
-            ) as temp_file:
-                args = [
-                    "journalctl", "-u", "NetworkManager", "--no-pager",
-                    "--utc", "--since=-1d", "--no-hostname"
-                ]
-                process = subprocess.run(args, stdout=temp_file, check=False)  # nosec B603
-                if process.returncode == 0:
-                    return open(temp_file.name, "rb")
+        with NamedTemporaryFile(
+            prefix="NetworkManager-", suffix=".log", delete=False
+        ) as temp_file:
+            args = [
+                "journalctl", "-u", "NetworkManager", "--no-pager",
+                "--utc", "--since=-1d", "--no-hostname"
+            ]
+            process = subprocess.run(args,  # nosec B603 # noqa E501 # pylint: disable=no-member, disable=line-too-long # nosemgrep: gitlab.bandit.B604, python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit
+                                            stdout=temp_file,
+                                            check=False)
+            if process.returncode == 0:
+                # We're waiting for the process to terminate before
+                # reading the file, so we should be okay to open it.
+                return open(temp_file.name, "rb")  # pylint: disable=line-too-long # noqa: E501 # nosemgrep: python.lang.correctness.tempfile.flush.tempfile-without-flush
 
-                raise RuntimeError("Network Manager logs could not be generated.")
-
-        return self._executor.submit(run_subprocess)
+            raise RuntimeError("Network Manager logs could not be generated.")

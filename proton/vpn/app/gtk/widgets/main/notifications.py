@@ -19,9 +19,55 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with ProtonVPN.  If not, see <https://www.gnu.org/licenses/>.
 """
-from gi.repository import GLib
+from dataclasses import dataclass
+from typing import Optional, Callable, List
+
+from gi.repository import GLib, Notify
+
 from proton.vpn.app.gtk import Gtk
+from proton.vpn.app.gtk.assets.icons import ICONS_PATH
+from proton.vpn.app.gtk.translator import C_
+from proton.vpn.app.gtk.utils.glib import run_once
+from proton.vpn.app.gtk.utils.safe_signal_connect import safe_signal_connect
+from proton.vpn.app.gtk.utils.window import register_proton_window
 from proton.vpn.app.gtk.widgets.main.notification_bar import NotificationBar
+
+
+@dataclass
+class DialogButton:
+    """A button for a dialog."""
+    label: str
+    response_type: Gtk.ResponseType
+
+
+def build_error_dialog(  # pylint: disable=too-many-arguments
+        parent: Optional[Gtk.Window], title: str, message: str,
+        hint: Optional[str] = None,
+        message_type: Optional[Gtk.MessageType] = Gtk.MessageType.ERROR,
+        buttons: Optional[List[DialogButton]] = None,
+) -> Gtk.MessageDialog:
+    """A modal dialog showing `title` above `message`, and `hint` in small text."""
+    dialog = Gtk.MessageDialog(
+        transient_for=parent,
+        message_type=message_type,
+        buttons=Gtk.ButtonsType.NONE,
+        text=title,
+    )
+    dialog.set_destroy_with_parent(True)
+    register_proton_window(dialog)
+
+    buttons = buttons or [DialogButton(C_("button", "OK"), Gtk.ResponseType.OK)]
+    for button in buttons:
+        dialog.add_button(button.label, button.response_type)
+
+    secondary_text = message
+    if hint:
+        secondary_text += f"\n\n<span size=\"smaller\" weight=\"light\">{hint}</span>"
+
+    dialog.set_modal(True)
+    dialog.props.secondary_text = secondary_text
+    dialog.props.secondary_use_markup = True
+    return dialog
 
 
 class Notifications:
@@ -33,40 +79,60 @@ class Notifications:
     ):
         self._main_window = main_window
         self.notification_bar = notification_bar
-        self.error_dialog = None
+        self.error_dialog: Optional[Gtk.MessageDialog] = None
+        self._on_dialog_closed = None
+        Notify.init("Proton VPN")
 
-    def show_error_dialog(self, message: str, title: str):
+    def show_error_dialog(
+            self, message: str, title: str, hint: Optional[str] = None,
+            message_type: Gtk.MessageType = Gtk.MessageType.ERROR,
+            buttons: Optional[List[DialogButton]] = None,
+            on_dialog_closed: Optional[Callable] = None
+    ):  # pylint: disable=too-many-arguments
         """Show an error dialog to the user."""
-        GLib.idle_add(
-            self._generate_and_show_dialog, title, message
+        run_once(
+            self._generate_and_show_dialog, title, message, hint, message_type,
+            buttons, on_dialog_closed
         )
 
-    def _generate_and_show_dialog(self, title: str, message: str):
+    def _generate_and_show_dialog(
+            self, title: str, message: str, hint: Optional[str],
+            message_type: Optional[Gtk.MessageType],
+            buttons: Optional[List[DialogButton]],
+            on_dialog_closed: Optional[Callable]
+    ):  # pylint: disable=too-many-arguments
         """Generates and displays a pop-up dialog to the user, blocking
         the rest of the UI."""
         if self.error_dialog:
             self.error_dialog.destroy()
             self.error_dialog = None
 
-        self.error_dialog = Gtk.MessageDialog(
-            transient_for=self._main_window,
-            flags=Gtk.DialogFlags.DESTROY_WITH_PARENT,
-            message_type=Gtk.MessageType.ERROR,
-            buttons=Gtk.ButtonsType.OK,
-            text=title,
+        self.error_dialog = build_error_dialog(
+            self._main_window, title, message, hint, message_type, buttons
         )
 
-        self.error_dialog.set_modal(True)
-        self.error_dialog.format_secondary_text(message)
-        # .run() blocks code execution until a button on the dialog is clicked,
-        # so followed code will only be run after the .run() method has returned.
-        self.error_dialog.run()
-        self.error_dialog.destroy()
+        self._on_dialog_closed = on_dialog_closed
+        safe_signal_connect(self.error_dialog, "response", self._on_dialog_response)
+        self.error_dialog.present()
+
+    def _on_dialog_response(self, dialog, response_id):
+        dialog.destroy()
+        self.error_dialog = None
+        if self._on_dialog_closed:
+            run_once(self._on_dialog_closed, response_id)
+            self._on_dialog_closed = None
 
     def show_error_message(self, message: str):
         """Shows the error message in the notification bar."""
         GLib.idle_add(
             self.notification_bar.show_error_message,
+            message
+        )
+
+    def show_info_message(self, message: str):
+        """Shows the info message in the notification bar."""
+        GLib.idle_add(
+            self.notification_bar.show_info_message,
             message
         )
 
@@ -82,3 +148,10 @@ class Notifications:
         GLib.idle_add(
             self.notification_bar.clear
         )
+
+    def show_gnome_notification(self, title: str, description: str):
+        """Shows a gnome desktop notification."""
+        Notify.Notification.new(
+            title, description,
+            str(ICONS_PATH / "proton-vpn-sign.svg")
+        ).show()

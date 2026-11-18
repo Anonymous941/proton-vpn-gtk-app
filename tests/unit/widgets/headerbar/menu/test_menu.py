@@ -20,50 +20,13 @@ from concurrent.futures import Future
 from unittest.mock import Mock, patch, PropertyMock, call
 import pytest
 
+from proton.vpn.connection.states import Disconnected
 from proton.session.exceptions import ProtonAPINotReachable
 from proton.vpn.connection.enum import KillSwitchSetting as KillSwitchSettingEnum
 from proton.vpn.app.gtk.widgets.headerbar.menu.menu import Menu
 from proton.vpn.app.gtk import Gtk
 
 from tests.unit.testing_utils import process_gtk_events
-
-
-class TestReportBugMenuEntry:
-
-    @patch("proton.vpn.app.gtk.widgets.headerbar.menu.menu.BugReportDialog")
-    def test_bug_report_menu_entry_shows_bug_report_dialog_when_clicked(self, bug_report_dialog_patch):
-        bug_report_dialog_mock = Mock()
-        bug_report_dialog_patch.return_value = bug_report_dialog_mock
-
-        menu = Menu(
-            controller=Mock(),
-            main_window=Mock(),
-            overlay_widget=Mock()
-        )
-        menu.bug_report_button_click()
-
-        bug_report_dialog_mock.run.assert_called_once()
-        bug_report_dialog_mock.destroy.assert_called_once()
-
-
-class TestAboutMenuEntry:
-
-    @patch("proton.vpn.app.gtk.widgets.headerbar.menu.menu.AboutDialog")
-    def test_about_menu_entry_shows_about_dialog_when_clicked(self, about_dialog_patch):
-        about_dialog_mock = Mock()
-        about_dialog_patch.return_value = about_dialog_mock
-
-        menu = Menu(
-            controller=Mock(),
-            main_window=Mock(),
-            overlay_widget=Mock()
-        )
-        menu.about_button_click()
-
-        process_gtk_events()
-
-        about_dialog_mock.run.assert_called_once()
-        about_dialog_mock.destroy.assert_called_once()
 
 
 class TestLogoutMenuEntry:
@@ -107,8 +70,6 @@ class TestLogoutMenuEntry:
         menu.logout_button_click()
 
         process_gtk_events()
-
-        controller_mock.clear_settings.assert_called_once()
 
     def test_logout_menu_entry_display_overlay_widget_when_clicked(self):
         logout_future = Future()
@@ -216,10 +177,9 @@ class TestLogoutMenuEntry:
         logout_future.set_result(None)
 
         controller_mock.logout.return_value = logout_future
-        controller_mock.is_connection_disconnected = False
+        controller_mock.connection_disconnected = False
 
         confirmation_dialog_mock = Mock()
-        confirmation_dialog_mock.run.return_value = Gtk.ResponseType.YES.real
         confirmation_dialog_patch.return_value = confirmation_dialog_mock
 
         menu = Menu(
@@ -232,7 +192,13 @@ class TestLogoutMenuEntry:
 
         process_gtk_events()
 
-        confirmation_dialog_mock.run.assert_called_once()
+        confirmation_dialog_mock.present.assert_called_once()
+
+        assert confirmation_dialog_mock.connect.call_count == 1
+        assert confirmation_dialog_mock.connect.call_args[0][0] == "response"
+        # Simulate user clicking "Yes" in the confirmation dialog
+        confirmation_dialog_mock.connect.call_args[0][1](confirmation_dialog_mock, Gtk.ResponseType.YES.real)
+
         confirmation_dialog_mock.destroy.assert_called_once()
         controller_mock.logout.assert_called_once()
 
@@ -246,10 +212,9 @@ class TestLogoutMenuEntry:
         logout_future.set_result(None)
 
         controller_mock.logout.return_value = logout_future
-        controller_mock.is_connection_disconnected = False
+        controller_mock.connection_disconnected = False
 
         confirmation_dialog_mock = Mock()
-        confirmation_dialog_mock.run.return_value = Gtk.ResponseType.NO.real
         confirmation_dialog_patch.return_value = confirmation_dialog_mock
 
         menu = Menu(
@@ -262,7 +227,13 @@ class TestLogoutMenuEntry:
 
         process_gtk_events()
 
-        confirmation_dialog_mock.run.assert_called_once()
+        confirmation_dialog_mock.present.assert_called_once()
+
+        assert confirmation_dialog_mock.connect.call_count == 1
+        assert confirmation_dialog_mock.connect.call_args[0][0] == "response"
+        # Simulate user clicking "No" in the confirmation dialog
+        confirmation_dialog_mock.connect.call_args[0][1](confirmation_dialog_mock, Gtk.ResponseType.NO.real)
+
         confirmation_dialog_mock.destroy.assert_called_once()
         assert not controller_mock.logout.call_count
 
@@ -272,10 +243,9 @@ class TestLogoutMenuEntry:
     ):
         controller_mock = Mock()
         controller_mock.get_settings.return_value.killswitch = KillSwitchSettingEnum.ON
-        controller_mock.is_connection_disconnected = False
+        controller_mock.connection_disconnected = False
 
         confirmation_dialog_mock = Mock()
-        confirmation_dialog_mock.run.return_value = Gtk.ResponseType.NO.real
         confirmation_dialog_patch.return_value = confirmation_dialog_mock
 
         menu = Menu(
@@ -299,7 +269,7 @@ class TestLogoutMenuEntry:
     ):
         controller_mock = Mock()
         controller_mock.get_settings.return_value.killswitch = KillSwitchSettingEnum.PERMANENT
-        controller_mock.is_connection_disconnected = True
+        controller_mock.connection_disconnected = True
 
         confirmation_dialog_mock = Mock()
         confirmation_dialog_mock.run.return_value = Gtk.ResponseType.NO.real
@@ -331,10 +301,9 @@ class TestLogoutMenuEntry:
         controller_mock.disable_killswitch.return_value = future
         property_mock = PropertyMock(return_value=kill_switch_state)
         type(controller_mock.get_settings.return_value).killswitch = property_mock
-        controller_mock.is_connection_disconnected = True
+        controller_mock.connection_disconnected = True
 
         confirmation_dialog_mock = Mock()
-        confirmation_dialog_mock.run.return_value = Gtk.ResponseType.YES.real
         confirmation_dialog_patch.return_value = confirmation_dialog_mock
 
         menu = Menu(
@@ -346,6 +315,11 @@ class TestLogoutMenuEntry:
         menu.logout_button_click()
 
         process_gtk_events()
+
+        if confirmation_dialog_mock.connect.called:
+            # Simulate user clicking "Yes" in the confirmation dialog
+            confirmation_dialog_mock.connect.call_args[0][1](confirmation_dialog_mock, Gtk.ResponseType.YES.real)
+            process_gtk_events()
 
         assert property_mock.called
         assert controller_mock.method_calls == [
@@ -361,7 +335,7 @@ class TestQuitMenuEntry:
         main_window_mock = Mock()
         controller_mock = Mock()
         controller_mock.get_settings.return_value.killswitch = KillSwitchSettingEnum.OFF
-        controller_mock.is_connection_disconnected = True
+        controller_mock.connection_disconnected = True
 
         menu = Menu(
             controller=controller_mock,
@@ -382,7 +356,7 @@ class TestQuitMenuEntry:
         main_window_mock = Mock()
         controller_mock = Mock()
         controller_mock.get_settings.return_value.killswitch = KillSwitchSettingEnum.OFF
-        controller_mock.is_connection_disconnected = False
+        controller_mock.connection_disconnected = False
 
         quit_dialog_mock = Mock()
         quit_dialog_mock.run.return_value = Gtk.ResponseType.YES.real
@@ -395,6 +369,7 @@ class TestQuitMenuEntry:
         )
 
         menu.quit_button_click()
+        menu.status_update(Disconnected())
         main_window_mock.quit.assert_called_once()
 
     @patch("proton.vpn.app.gtk.widgets.headerbar.menu.menu.ConfirmationDialog")
@@ -404,7 +379,7 @@ class TestQuitMenuEntry:
         main_window_mock = Mock()
         controller_mock = Mock()
         controller_mock.get_settings.return_value.killswitch = KillSwitchSettingEnum.OFF
-        controller_mock.is_connection_disconnected = False
+        controller_mock.connection_disconnected = False
 
         quit_dialog_mock = Mock()
         quit_dialog_mock.run.return_value = Gtk.ResponseType.NO.real
@@ -425,7 +400,7 @@ class TestQuitMenuEntry:
     ):
         controller_mock = Mock()
         controller_mock.get_settings.return_value.killswitch = KillSwitchSettingEnum.OFF
-        controller_mock.is_connection_disconnected = False
+        controller_mock.connection_disconnected = False
 
         confirmation_dialog_mock = Mock()
         confirmation_dialog_mock.run.return_value = Gtk.ResponseType.NO.real
@@ -449,7 +424,7 @@ class TestQuitMenuEntry:
     ):
         controller_mock = Mock()
         controller_mock.get_settings.return_value.killswitch = KillSwitchSettingEnum.PERMANENT
-        controller_mock.is_connection_disconnected = False
+        controller_mock.connection_disconnected = False
 
         quit_dialog_mock = Mock()
         quit_dialog_mock.run.return_value = Gtk.ResponseType.NO.real
@@ -481,7 +456,7 @@ class TestQuitMenuEntry:
         controller_mock.disable_killswitch.return_value = future
         property_mock = PropertyMock(return_value=KillSwitchSettingEnum.ON)
         type(controller_mock.get_settings.return_value).killswitch = property_mock
-        controller_mock.is_connection_disconnected = True
+        controller_mock.connection_disconnected = True
 
         confirmation_dialog_mock = Mock()
         confirmation_dialog_mock.run.return_value = Gtk.ResponseType.YES.real

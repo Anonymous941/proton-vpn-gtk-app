@@ -21,18 +21,20 @@ You should have received a copy of the GNU General Public License
 along with ProtonVPN.  If not, see <https://www.gnu.org/licenses/>.
 """
 from concurrent.futures import Future
-from pathlib import Path
 
 from gi.repository import GLib, GObject
 
 from proton.vpn import logging
 
 from proton.vpn.app.gtk import Gtk
-from proton.vpn.app.gtk.assets import icons
 from proton.vpn.app.gtk.controller import Controller
+from proton.vpn.app.gtk.translator import C_
+from proton.vpn.app.gtk.utils.safe_signal_connect import safe_signal_connect
 from proton.vpn.app.gtk.widgets.login.logo import ProtonVPNLogo
+from proton.vpn.app.gtk.widgets.login.password_entry import PasswordEntry
 from proton.vpn.app.gtk.widgets.main.notifications import Notifications
 from proton.vpn.app.gtk.widgets.main.loading_widget import OverlayWidget, DefaultLoadingWidget
+from proton.vpn.app.gtk.utils.entry import add_clear_icon
 
 logger = logging.getLogger(__name__)
 
@@ -45,62 +47,73 @@ class LoginForm(Gtk.Box):  # pylint: disable=R0902
     TwoFactorAuthForm.
 
     """
-    LOGGING_IN_MESSAGE = "Logging in..."
-    INVALID_USERNAME_MESSAGE = "Invalid username."
-    INCORRECT_CREDENTIALS_MESSAGE = "Incorrect credentials."
+    # Message displayed after pressing "Sign In" button.
+    LOGGING_IN_MESSAGE = C_("message", "Signing in...")
+    # Error message displayed if username is invalid.
+    INVALID_USERNAME_MESSAGE = C_("error", "Invalid username.")
+    # Error message displayed if credentials are invalid.
+    INCORRECT_CREDENTIALS_MESSAGE = C_("error", "Incorrect credentials.")
 
     def __init__(
-        self, controller: Controller,
-        notifications: Notifications, overlay_widget: OverlayWidget
+        self,
+        controller: Controller,
+        notifications: Notifications,
+        overlay_widget: OverlayWidget
     ):
         super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=30)
         self.set_name("login-form")
+        self.set_vexpand(True)
+        self.set_halign(Gtk.Align.FILL)
+        self.set_valign(Gtk.Align.FILL)
         self._controller = controller
         self._notifications = notifications
         self._overlay_widget = overlay_widget
 
-        self.pack_start(ProtonVPNLogo(), expand=False, fill=True, padding=0)
+        self.append(ProtonVPNLogo())
 
         self._username_entry = Gtk.Entry()
-        self._username_entry.set_placeholder_text("Username")
+        add_clear_icon(self._username_entry)
+        # Placeholder for username textfield.
+        self._username_entry.set_placeholder_text(C_("placeholder", "Username"))
         self._username_entry.set_input_purpose(Gtk.InputPurpose.FREE_FORM)
-        self.pack_start(self._username_entry, expand=False, fill=False, padding=0)
+        self.append(self._username_entry)
 
         self._password_entry = PasswordEntry()
-        self._password_entry.set_placeholder_text("Password")
-        self.pack_start(self._password_entry, expand=False, fill=False, padding=0)
+        # Placeholder for password textfield.
+        self._password_entry.set_placeholder_text(C_("placeholder", "Password"))
+        self.append(self._password_entry)
 
-        self._login_button = Gtk.Button(label="Login")
-        self._login_button.connect("clicked", self._on_login_button_clicked)
-        self._login_button.get_style_context().add_class("primary")
-        self._login_button.get_style_context().add_class("spaced")
+        # Button to start sign in workflow.
+        self._login_button = Gtk.Button(label=C_("button", "Sign in"))
+        safe_signal_connect(self._login_button, "clicked", self._on_login_button_clicked)
+        self._login_button.add_css_class("primary")
         self._login_button.set_halign(Gtk.Align.CENTER)
         # By default, the button should never be clickable, as username and
         # password fields are empty and users need to actively provide an input
         # to unlock the login button.
         self._login_button.set_property("sensitive", False)
-        self.pack_start(self._login_button, expand=False, fill=False, padding=0)
+        self.append(self._login_button)
 
         # Listen to key entries so that the login button can be "unlocked"
         # once username and password are provided.
-        self._password_entry.connect(
-            "changed", self._on_entry_changed
+        safe_signal_connect(
+            self._password_entry, "changed", self._on_entry_changed
         )
-        self._username_entry.connect(
-            "changed", self._on_entry_changed
+        safe_signal_connect(
+            self._username_entry, "changed", self._on_entry_changed
         )
 
         # Allows both entries to react to 'Enter' button
-        self._username_entry.connect("activate", self._on_press_enter)
-        self._password_entry.connect("activate", self._on_press_enter)
+        safe_signal_connect(self._username_entry, "activate", self._on_press_enter)
+        safe_signal_connect(self._password_entry, "activate", self._on_press_enter)
 
-        self.pack_end(LoginLinks(), expand=False, fill=False, padding=0)
+        self.append(LoginLinks())
 
     def _on_press_enter(self, _):
         if not self._login_button.get_property("sensitive"):
             return
 
-        self._login_button.clicked()
+        self._login_button.emit("clicked")
 
     def _on_login_button_clicked(self, _):
         logger.info("Clicked on login", category="UI", subcategory="LOGIN", event="CLICK")
@@ -117,7 +130,10 @@ class LoginForm(Gtk.Box):  # pylint: disable=R0902
             result = future.result()
         except ValueError as error:
             self._notifications.show_error_message(self.INVALID_USERNAME_MESSAGE)
-            logger.debug(error, category="APP", subcategory="LOGIN", event="RESULT")
+            logger.warning(
+                error, category="APP", subcategory="LOGIN", event="RESULT",
+                exc_info=True
+            )
             self.emit("login-error")
             return
         finally:
@@ -127,7 +143,7 @@ class LoginForm(Gtk.Box):  # pylint: disable=R0902
             self._signal_user_authenticated(result.twofa_required)
         else:
             self._notifications.show_error_message(self.INCORRECT_CREDENTIALS_MESSAGE)
-            logger.debug(
+            logger.warning(
                 self.INCORRECT_CREDENTIALS_MESSAGE, category="APP",
                 subcategory="LOGIN", event="RESULT"
             )
@@ -196,7 +212,7 @@ class LoginForm(Gtk.Box):  # pylint: disable=R0902
     def submit_login(self):
         """Submits the login form.
         This property was made available mainly for testing purposes."""
-        self._login_button.clicked()
+        self._login_button.emit("clicked")
 
     def username_enter(self):
         """Submits the login form from the username entry.
@@ -209,83 +225,25 @@ class LoginForm(Gtk.Box):  # pylint: disable=R0902
         self._password_entry.emit("activate")
 
 
-class PasswordEntry(Gtk.Entry):
-    """
-    Entry used to introduce the password in the login form.
-
-    On top of the inherited functionality from Gtk.Entry, an icon is shown
-    inside the text entry to show or hide the password.
-
-    By default, the text (password) introduced in the entry is not show.
-    Therefore, the icon to be able to show the text is displayed. Once this
-    icon is pressed, the text is revealed and the icon to hide the password
-    is shown instead.
-    """
-    def __init__(self):
-        super().__init__()
-        self.set_input_purpose(Gtk.InputPurpose.PASSWORD)
-        self.set_visibility(False)
-        # Load icon to hide the password.
-        eye_dirpath = Path("eye")
-        hide_fp = eye_dirpath / "hide.svg"
-        self._hide_pixbuff = icons.get(
-            hide_fp,
-            width=18,
-            height=18,
-            preserve_aspect_ratio=True
-        )
-        # Load icon to show the password.
-        show_fp = eye_dirpath / "show.svg"
-        self._show_pixbuff = icons.get(
-            show_fp,
-            width=18,
-            height=18,
-            preserve_aspect_ratio=True
-        )
-        # By default, the password is not shown. Therefore, the icon to
-        # be able to show the password is shown.
-        self.set_icon_from_pixbuf(
-            Gtk.EntryIconPosition.SECONDARY,
-            self._show_pixbuff
-        )
-        self.set_icon_activatable(
-            Gtk.EntryIconPosition.SECONDARY,
-            True
-        )
-        self.connect(
-            "icon-press", self._on_change_password_visibility_icon_press
-        )
-
-    def _on_change_password_visibility_icon_press(
-            self, gtk_entry_object,
-            gtk_icon_object, gtk_event  # pylint: disable=W0613
-    ):
-        """Changes password visibility, updating accordingly the icon."""
-        is_text_visible = gtk_entry_object.get_visibility()
-        gtk_entry_object.set_visibility(not is_text_visible)
-        self.set_icon_from_pixbuf(
-            Gtk.EntryIconPosition.SECONDARY,
-            self._show_pixbuff
-            if is_text_visible
-            else self._hide_pixbuff
-        )
-
-
 class LoginLinks(Gtk.Box):
     """Links shown in the login widget."""
     def __init__(self):
         super().__init__(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+        self.set_vexpand(True)
+        self.set_valign(Gtk.Align.END)
         create_account_link = Gtk.LinkButton(
-            label="Create Account",
-            uri="https://account.protonvpn.com/signup"
+            # Button leading to Proton Sign Up website
+            label=C_("button", "Create Account"),
+            uri="https://account.protonvpn.com/signup?ref=linux"
         )
-        self.pack_start(
-            create_account_link, expand=False, fill=False, padding=0
-        )
+        create_account_link.set_halign(Gtk.Align.START)
+        create_account_link.set_hexpand(True)
+        self.append(create_account_link)
         help_link = Gtk.LinkButton(
-            label="Need Help?",
+            # Button leading to Proton support website
+            label=C_("button", "Need Help?"),
             uri="https://protonvpn.com/support"
         )
-        self.pack_end(
-            help_link, expand=False, fill=False, padding=0
-        )
+        help_link.set_halign(Gtk.Align.END)
+        help_link.set_hexpand(True)
+        self.append(help_link)

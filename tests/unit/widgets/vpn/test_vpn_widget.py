@@ -16,16 +16,15 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with ProtonVPN.  If not, see <https://www.gnu.org/licenses/>.
 """
-import time
-from unittest.mock import Mock, patch
+from concurrent.futures import Future
 from threading import Event
+from unittest.mock import Mock, patch
 
 import pytest
-from proton.vpn.core.session.client_config import ClientConfig
+from proton.vpn.session.client_config import ClientConfig
 
-from proton.vpn.core.session.servers import ServerList
+from proton.vpn.session.servers import ServerList
 
-from proton.vpn.app.gtk.services import VPNDataRefresher
 from proton.vpn.app.gtk.widgets.vpn import VPNWidget
 from proton.vpn.connection.states import Connected
 
@@ -73,23 +72,21 @@ def test_load_enables_vpn_data_refresher_and_displays_widget_when_data_is_ready(
     controller_mock = Mock()
     api_mock = Mock()
     api_mock.account_data.vpn_credentials.pubkey_credentials.remaining_time_to_next_refresh = 1
-    controller_mock.vpn_data_refresher = VPNDataRefresher(
-        executor=Mock(),
-        proton_vpn_api=api_mock
-    )
     controller_mock.user_tier = PLUS_TIER
     api_mock.client_config.seconds_until_expiration = 10
+    api_mock.feature_flags.seconds_until_expiration = 10
 
-    vpn_widget = VPNWidget(controller=controller_mock, main_window=Mock(), overlay_widget=Mock())
+    vpn_widget = VPNWidget(controller=controller_mock, main_window=Mock())
     with patch.object(vpn_widget, "display"):
         vpn_widget.load()
 
         # Simulate vpn-data-ready signal from VPNDataRefresher.
-        controller_mock.vpn_data_refresher.emit("vpn-data-ready", server_list, client_config)
+        callback = controller_mock.enable_refresher.call_args[0][0]
+        callback(Mock(Future))
 
         process_gtk_events()
 
-        vpn_widget.display.assert_called_with(PLUS_TIER, server_list)
+        vpn_widget.display.assert_called_with(PLUS_TIER, controller_mock.server_list)
 
 
 def test_display_initializes_widget(server_list):
@@ -104,12 +101,15 @@ def test_display_initializes_widget(server_list):
      4. emit the vpn-widget-ready signal.
     """
     controller_mock = Mock()
-    vpn_widget = VPNWidget(controller=controller_mock, main_window=Mock(), overlay_widget=Mock())
+    vpn_widget = VPNWidget(controller=controller_mock, main_window=Mock())
 
-    # Mock connection status subscribers
-    connection_status_subscriber = Mock()
-    vpn_widget.connection_status_subscribers.clear()
-    vpn_widget.connection_status_subscribers.append(connection_status_subscriber)
+    connection_state_changed = Mock()
+    vpn_widget.connect("connection-state-changed", connection_state_changed)
+
+    # Prevent child widgets from processing the real state (tested separately).
+    vpn_widget.connection_status_widget.update_status = Mock()
+    vpn_widget.connection_status_widget.announce_state_change = Mock()
+    vpn_widget.quick_connect_widget.connection_status_update = Mock()
 
     vpn_widget_ready_event = Event()
     vpn_widget.connect("vpn-widget-ready", lambda *_: vpn_widget_ready_event.set())
@@ -118,26 +118,43 @@ def test_display_initializes_widget(server_list):
 
     process_gtk_events()
 
-    connection_status_subscriber.connection_status_update.assert_called_once()  # (1)
+    connection_state_changed.assert_called()  # (1)
     controller_mock.register_connection_status_subscriber.assert_called_once_with(vpn_widget)  # (2)
     controller_mock.reconnector.enable.assert_called_once()  # (3)
     assert vpn_widget_ready_event.wait(timeout=0), "vpn-data-ready signal was not sent."  # (4)
 
 
 def test_vpn_widget_notifies_child_widgets_on_connection_status_update():
-    vpn_widget = VPNWidget(controller=Mock(), main_window=Mock(), overlay_widget=Mock())
+    """The quick connect button's accessible description and the screen
+    reader announcement are both built from the connection status labels,
+    so those labels are updated first.
+    """
+    vpn_widget = VPNWidget(controller=Mock(), main_window=Mock(), notifications=Mock())
 
-    # Mock connection status subscribers
-    connection_status_subscriber = Mock()
-    vpn_widget.connection_status_subscribers.clear()
-    vpn_widget.connection_status_subscribers.append(connection_status_subscriber)
+    calls = []
+    status_widget = vpn_widget.connection_status_widget
+    quick_connect = vpn_widget.quick_connect_widget
+    status_widget.update_status = Mock(side_effect=lambda s: calls.append(("update_status", s)))
+    status_widget.announce_state_change = Mock(
+        side_effect=lambda s: calls.append(("announce", s))
+    )
+    quick_connect.set_accessible_details = Mock(
+        side_effect=lambda s: calls.append(("describe", s))
+    )
+    quick_connect.connection_status_update = Mock(
+        side_effect=lambda s: calls.append(("relabel", s))
+    )
 
     state = Connected()
     vpn_widget.status_update(state)
 
     process_gtk_events()
 
-    connection_status_subscriber.connection_status_update.assert_called_once_with(state)
+    assert [name for name, _ in calls] == [
+        "update_status", "describe", "relabel", "announce"
+    ]
+    status_widget.update_status.assert_called_once_with(state)
+    quick_connect.connection_status_update.assert_called_once_with(state)
 
 
 def test_unload_resets_widget_state():
@@ -152,10 +169,10 @@ def test_unload_resets_widget_state():
     controller_mock = Mock()
     controller_mock.is_connection_active = True
 
-    vpn_widget = VPNWidget(controller=controller_mock, main_window=Mock(), overlay_widget=Mock())
+    vpn_widget = VPNWidget(controller=controller_mock, main_window=Mock())
     vpn_widget.unload()
 
     controller_mock.disconnect.assert_called_once()  # (1)
     controller_mock.unregister_connection_status_subscriber.assert_called_once_with(vpn_widget)  # (2)
     controller_mock.reconnector.disable.assert_called_once()  # (3)
-    controller_mock.vpn_data_refresher.disable.assert_called_once()  # (4)
+    controller_mock.disable_refresher.assert_called_once()  # (4)

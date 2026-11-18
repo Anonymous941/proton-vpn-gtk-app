@@ -19,6 +19,8 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with ProtonVPN.  If not, see <https://www.gnu.org/licenses/>.
 """
+import weakref
+from concurrent.futures import Future
 from typing import Callable
 
 from gi.repository import GLib
@@ -58,28 +60,47 @@ def run_periodically(function, *args, interval_ms: int, **kwargs) -> int:
     return GLib.timeout_add(interval_ms, wrapper_function)
 
 
-def run_after_ms(function, *args, delay_ms: int, **kwargs) -> int:
+def weak_deferred_glib_callback(
+        method: Callable[[], bool], one_shot: bool = False
+) -> Callable[[], bool]:
     """
-    Runs a function after the specified delay (in ms) on the GLib main loop.
+    Wraps a bound method as a GLib.timeout_add(_seconds)/idle_add callback without
+    letting GLib keep its owner alive: GLib holds a strong reference to the callback
+    for as long as the source is scheduled, so wrapping it in a weakref.WeakMethod
+    lets it become a self-removing no-op once the owner is garbage collected.
 
-    :param function: function to be called.
-    :param *args: arguments to be passed to the function.
-    :param delay_ms: amount of milliseconds to wait before the function is called.
-    :param **kwargs: keyword arguments to be passed to the function.
+    :param method: a bound method to call when the callback fires.
+    :param one_shot: if True, always returns GLib.SOURCE_REMOVE after calling the
+        method, for one-shot timeouts. If False (default), propagates the method's
+        own return value, for periodic timers that decide for themselves when to stop.
     """
-    def wrapper_function():
-        function(*args, **kwargs)
-        # Returning a falsy value is required so that GLib does not keep
-        # running the function over and over again.
-        return False
+    weak_method = weakref.WeakMethod(method)
 
-    return GLib.timeout_add(delay_ms, wrapper_function)
+    def callback() -> bool:
+        bound_method = weak_method()
+        if bound_method is None:
+            return GLib.SOURCE_REMOVE
+        result = bound_method()
+        return GLib.SOURCE_REMOVE if one_shot else result
+
+    return callback
 
 
-def run_after_seconds(function, *args, delay_seconds: int, **kwargs) -> int:
+def bubble_up_errors(future: Future):
+    """Makes sure that any error the future resolves to bubbles up to the GLib main loop."""
+    future.add_done_callback(lambda f: GLib.idle_add(f.result))
+
+
+def add_done_callback(future: Future, callback: Callable[[Future], None]):
     """
-    Runs a function after the specified delay (in seconds) on the GLib main loop.
+    Adds a callback to be executed once the future completes, but in a way that's GLib-compatible.
 
-    See :func:`run_after_ms`.
+    We currently use Futures to bridge between the asyncio event loop and the GLib event loop.
+    When using Future.add_done_callback(callback), the callback is run by the thread
+    running the asyncio loop. However, if the callback does GTK-related work, it needs to
+    run on the thread running the GLib loop.
+
+    This function takes care of wrapping the callback in a GLib.idle_add call to make sure the
+    callback runs on the GLib thread.
     """
-    return run_after_ms(function, *args, delay_ms=delay_seconds*1000, **kwargs)
+    future.add_done_callback(lambda f: GLib.idle_add(callback, f))

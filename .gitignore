@@ -8,3 +8,7 @@ venv
 *.code-workspace
 venv_testing
 .vscode
+dist/
+package.spec
+po/*.pot
+proton/vpn/app/gtk/locale/binaries/*
